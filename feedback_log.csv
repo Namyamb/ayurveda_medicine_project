@@ -1,0 +1,65 @@
+audio_path,predicted,correct,user_feedback
+C:\Users\Admin\Desktop\Mobio Solutions workspace\Ayurveda medicine detection\ayur_voice_project\ayur_voice_project\new_samples\arjunarishta_2.wav,arjunarishta,arjunarishta,Correct
+C:\Users\Admin\Desktop\Mobio Solutions workspace\Ayurveda medicine detection\ayur_voice_project\ayur_voice_project\new_samples\arjunarishta_3.wav,arjunarishta,aravindasava,Incorrect
+C:\Users\Admin\Desktop\Mobio Solutions workspace\Ayurveda medicine detection\ayur_voice_project\ayur_voice_project\new_samples\arjunarishta_4.wav,arjunarishta,arjunarishta,Correct
+C:\Users\Admin\Desktop\Mobio Solutions workspace\Ayurveda medicine detection\ayur_voice_project\ayur_voice_project\new_samples\arjunarishta_5.wav,arjunarishta,arjunarishta,Correct
+C:\Users\Admin\Desktop\Mobio Solutions workspace\Ayurveda medicine detection\ayur_voice_project\ayur_voice_project\new_samples\arjunarishta_1.wav,arjunarishta,aravindasava,Incorrect
+C:\Users\Admin\Desktop\Mobio Solutions workspace\Ayurveda medicine detection\ayur_voice_project\ayur_voice_project\new_samples\ashokarishta_2.wav,ashokarishta,ashokarishta,Correct
+C:\Users\Admin\Desktop\Mobio Solutions workspace\Ayurveda medicine detection\ayur_voice_project\ayur_voice_project\new_samples\ashokarishta_3.wav,ashokarishta,ashokarishta,Correct
+C:\Users\Admin\Desktop\Mobio Solutions workspace\Ayurveda medicine detection\ayur_voice_project\ayur_voice_project\new_samples\aragvadharishta_5.wav,aragvadharishta,aragvadharishta,Correct
+C:\Users\Admin\Desktop\Mobio Solutions workspace\Ayurveda medicine detection\ayur_voice_project\ayur_voice_project\new_samples\abhayarishta 2_1.wav,abhayarishta 2,amritarishta,Incorrect
+C:\Users\Admin\Desktop\Mobio Solutions workspace\Ayurveda medicine detection\ayur_voice_project\ayur_voice_project\new_samples\amritarishta 2_2.wav,amritarishta 2,amritarishta 2,Correct
+C:\Users\Admin\Desktop\Mobio Solutions workspace\Ayurveda medicine detection\ayur_voice_project\ayur_voice_project\new_samples\ashokarishta 3_3.wav,ashokarishta 3,ashokarishta 3,Correct
+C:\Users\Admin\Desktop\Mobio Solutions workspace\Ayurveda medicine detection\ayur_voice_project\ayur_voice_project\new_samples\ashokarishta 1_4.wav,ashokarishta 1,ashokarishta 1,Correct
+C:\Users\Admin\Desktop\Mobio Solutions workspace\Ayurveda medicine detection\ayur_voice_project\ayur_voice_project\new_samples\aravindasava 1_5.wav,aravindasava 1,aravindasava 1,Correct
+C:\Users\Admin\Desktop\Mobio Solutions workspace\Ayurveda medicine detection\ayur_voice_project\ayur_voice_project\new_samples\aravindasava 1 1_6.wav,aravindasava 1 1,aragvadharishta,Incorrect
+C:\Users\Admin\Desktop\Mobio Solutions workspace\Ayurveda medicine detection\ayur_voice_project\ayur_voice_project\new_samples\ashokarishta 1_7.wav,ashokarishta 1,arjunarishta,Incorrect
+C:\Users\Admin\Desktop\Mobio Solutions workspace\Ayurveda medicine detection\ayur_voice_project\ayur_voice_project\new_samples\balarishta 2_8.wav,balarishta 2,balarishta 2,Correct
+C:\Users\Admin\Desktop\Mobio Solutions workspace\Ayurveda medicine detection\ayur_voice_project\ayur_voice_project\new_samples\chandanasava 2_9.wav,chandanasava 2,chandanasava 2,Correct
+C:\Users\Admin\Desktop\Mobio Solutions workspace\Ayurveda medicine detection\ayur_voice_project\ayur_voice_project\new_samples\chandanasava 5_10.wav,chandanasava 5,chandanasava 5,Correct
+C:\Users\Admin\Desktop\Mobio Solutions workspace\Ayurveda medicine detection\ayur_voice_project\ayur_voice_project\new_samples\chandanasava 5_11.wav,chandanasava 5,chandanasava 5,Correct
+C:\Users\Admin\Desktop\Mobio Solutions workspace\Ayurveda medicine detection\ayur_voice_project\ayur_voice_project\new_samples\abhayarishta 2_12.wav,abhayarishta 2,abhayarishta 2,Correct
+C:\Users\Admin\Desktop\Mobio Solutions workspace\Ayurveda medicine detection\ayur_voice_project\ayur_voice_project\new_samples\dashamularishta 3_13.wav,dashamularishta 3,dashamularishta 3,Correct
+C:\Users\Admin\Desktop\Mobio Solutions workspace\Ayurveda medicine detection\ayur_voice_project\ayur_voice_project\new_samples\aravindasava 3_14.wav,aravindasava 3,aravindasava 3,Correct
+C:\Users\Admin\Desktop\Mobio Solutions workspace\Ayurveda medicine detection\ayur_voice_project\ayur_voice_project\new_samples\chandanasava 7_15.wav,chandanasava 7,chandanasava 7,Correct
+C:\Users\Admin\Desktop\Mobio Solutions workspace\Ayurveda medicine detection\ayur_voice_project\ayur_voice_project\new_samples\balarishta 2_16.wav,balarishta 2,balarishta 2,Correct
+C:\Users\Admin\Desktop\Mobio Solutions workspace\Ayurveda medicine detection\ayur_voice_project\ayur_voice_project\new_samples\abhayarishta 2_17.wav,abhayarishta 2,abhayarishta 2,Correct
+C:\Users\Admin\Desktop\Mobio Solutions workspace\Ayurveda medicine detection\ayur_voice_project\ayur_voice_project\new_samples\aragvadharishta_18.wav,aragvadharishta,aragvadharishta,Correct
+C:\Users\Admin\Desktop\Mobio Solutions workspace\Ayurveda medicine detection\ayur_voice_project\ayur_voice_project\new_samples\aragvadharishta_19.wav,aragvadharishta,arjunarishta,Incorrect
+C:\Users\Admin\Desktop\Mobio Solutions workspace\Ayurveda medicine detection\ayur_voice_project\ayur_voice_project\new_samples\arjunarishta_20.wav,arjunarishta,arjunarishta,Correct
+C:\Users\Admin\Desktop\Mobio Solutions workspace\Ayurveda medicine detection\ayur_voice_project\ayur_voice_project\new_samples\balarishta 2_21.wav,balarishta 2,balarishta 2,Correct
+C:\Users\Admin\Desktop\Mobio Solutions workspace\Ayurveda medicine detection\ayur_voice_project\ayur_voice_project\new_samples\arjunarishta_22.wav,arjunarishta,arjunarishta,Correct
+C:\Users\Admin\Desktop\Mobio Solutions workspace\Ayurveda medicine detection\ayur_voice_project\ayur_voice_project\new_samples\arjunarishta_23.wav,arjunarishta,ashvagandharishta,Incorrect
+C:\Users\Admin\Desktop\Mobio Solutions workspace\Ayurveda medicine detection\ayur_voice_project\ayur_voice_project\new_samples\ashvagandharishta_24.wav,ashvagandharishta,ashvagandharishta,Correct
+C:\Users\Admin\Desktop\Mobio Solutions workspace\Ayurveda medicine detection\ayur_voice_project\ayur_voice_project\new_samples\chandanasava_25.wav,chandanasava,balarishta,Incorrect
+C:\Users\Admin\Desktop\Mobio Solutions workspace\Ayurveda medicine detection\ayur_voice_project\ayur_voice_project\new_samples\ashvagandharishta_26.wav,ashvagandharishta,ashvagandharishta,Correct
+C:\Users\Admin\Desktop\Mobio Solutions workspace\Ayurveda medicine detection\ayur_voice_project\ayur_voice_project\new_samples\dashamularishta_27.wav,dashamularishta,dashamularishta,Correct
+C:\Users\Admin\Desktop\Mobio Solutions workspace\Ayurveda medicine detection\ayur_voice_project\ayur_voice_project\new_samples\amritarishta_28.wav,amritarishta,amritarishta,Correct
+C:\Users\Admin\Desktop\Mobio Solutions workspace\Ayurveda medicine detection\ayur_voice_project\ayur_voice_project\new_samples\amritarishta_29.wav,amritarishta,abhayarishta,Incorrect
+C:\Users\Admin\Desktop\Mobio Solutions workspace\Ayurveda medicine detection\ayur_voice_project\ayur_voice_project\new_samples\abhayarishta_31.wav,abhayarishta,abhayarishta,Correct
+C:\Users\Admin\Desktop\Mobio Solutions workspace\Ayurveda medicine detection\ayur_voice_project\ayur_voice_project\new_samples\drakshasava_32.wav,drakshasava,drakshasava,Correct
+C:\Users\Admin\Desktop\Mobio Solutions workspace\Ayurveda medicine detection\ayur_voice_project\ayur_voice_project\new_samples\draksharishta_33.wav,draksharishta,draksharishta,Correct
+C:\Users\Admin\Desktop\Mobio Solutions workspace\Ayurveda medicine detection\ayur_voice_project\ayur_voice_project\new_samples\draksharishta_34.wav,draksharishta,draksharishta,Correct
+C:\Users\Admin\Desktop\Mobio Solutions workspace\Ayurveda medicine detection\ayur_voice_project\ayur_voice_project\new_samples\dashamularishta 3_35.wav,dashamularishta 3,dashamularishta 3,Correct
+C:\Users\Admin\Desktop\Mobio Solutions workspace\Ayurveda medicine detection\ayur_voice_project\ayur_voice_project\new_samples\abhayarishta_36.wav,abhayarishta,ashokarishta,Incorrect
+C:\Users\Admin\Desktop\Mobio Solutions workspace\Ayurveda medicine detection\ayur_voice_project\ayur_voice_project\new_samples\ashokarishta_37.wav,ashokarishta,ashokarishta,Correct
+C:\Users\Admin\Desktop\Mobio Solutions workspace\Ayurveda medicine detection\ayur_voice_project\ayur_voice_project\new_samples\abhayarishta_38.wav,abhayarishta,arjunarishta,Incorrect
+C:\Users\Admin\Desktop\Mobio Solutions workspace\Ayurveda medicine detection\ayur_voice_project\ayur_voice_project\new_samples\arjunarishta_39.wav,arjunarishta,arjunarishta,Correct
+C:\Users\Admin\Desktop\Mobio Solutions workspace\Ayurveda medicine detection\ayur_voice_project\ayur_voice_project\new_samples\arjunarishta_40.wav,arjunarishta,ashvagandharishta,Incorrect
+C:\Users\Admin\Desktop\Mobio Solutions workspace\Ayurveda medicine detection\ayur_voice_project\ayur_voice_project\new_samples\ashvagandharishta_41.wav,ashvagandharishta,ashvagandharishta,Correct
+C:\Users\Admin\Desktop\Mobio Solutions workspace\Ayurveda medicine detection\ayur_voice_project\ayur_voice_project\new_samples\abhayarishta_42.wav,abhayarishta,aragvadharishta,Incorrect
+C:\Users\Admin\Desktop\Mobio Solutions workspace\Ayurveda medicine detection\ayur_voice_project\ayur_voice_project\new_samples\aragvadharishta_43.wav,aragvadharishta,aragvadharishta,Correct
+C:\Users\Admin\Desktop\Mobio Solutions workspace\Ayurveda medicine detection\ayur_voice_project\ayur_voice_project\new_samples\ashokarishta_44.wav,ashokarishta,ashokarishta,Correct
+C:\Users\Admin\Desktop\Mobio Solutions workspace\Ayurveda medicine detection\ayur_voice_project\ayur_voice_project\new_samples\ashokarishta_45.wav,ashokarishta,ashokarishta,Correct
+C:\Users\Admin\Desktop\Mobio Solutions workspace\Ayurveda medicine detection\ayur_voice_project\ayur_voice_project\new_samples\ashokarishta 1_46.wav,ashokarishta 1,ashokarishta 1,Correct
+C:\Users\Admin\Desktop\Mobio Solutions workspace\Ayurveda medicine detection\ayur_voice_project\ayur_voice_project\new_samples\chandanasava_48.wav,chandanasava,aravindasava,Incorrect
+C:\Users\Admin\Desktop\Mobio Solutions workspace\Ayurveda medicine detection\ayur_voice_project\ayur_voice_project\new_samples\chandanasava_51.wav,chandanasava,chandanasava,Correct
+C:\Users\Admin\Desktop\Mobio Solutions workspace\Ayurveda medicine detection\ayur_voice_project\ayur_voice_project\new_samples\aravindasava_52.wav,aravindasava,aravindasava,Correct
+C:\Users\Admin\Desktop\Mobio Solutions workspace\Ayurveda medicine detection\ayur_voice_project\ayur_voice_project\new_samples\aravindasava_53.wav,aravindasava,chandanasava,Incorrect
+C:\Users\Admin\Desktop\Mobio Solutions workspace\Ayurveda medicine detection\ayur_voice_project\ayur_voice_project\new_samples\chandanasava_54.wav,chandanasava,chandanasava,Correct
+C:\Users\Admin\Desktop\Mobio Solutions workspace\Ayurveda medicine detection\ayur_voice_project\ayur_voice_project\new_samples\chandanasava_55.wav,chandanasava,chandanasava,Correct
+C:\Users\Admin\Desktop\Mobio Solutions workspace\Ayurveda medicine detection\ayur_voice_project\ayur_voice_project\new_samples\chandanasava_56.wav,chandanasava,chandanasava,Correct
+C:\Users\Admin\Desktop\Mobio Solutions workspace\Ayurveda medicine detection\ayur_voice_project\ayur_voice_project\new_samples\drakshasava_57.wav,drakshasava,drakshasava,Correct
+C:\Users\Admin\Desktop\Mobio Solutions workspace\Ayurveda medicine detection\ayur_voice_project\ayur_voice_project\new_samples\drakshasava_58.wav,drakshasava,drakshasava,Correct
+C:\Users\Admin\Desktop\Mobio Solutions workspace\Ayurveda medicine detection\ayur_voice_project\ayur_voice_project\new_samples\chandanasava 5_59.wav,chandanasava 5,chandanasava 5,Correct
+C:\Users\Admin\Desktop\Mobio Solutions workspace\Ayurveda medicine detection\ayur_voice_project\ayur_voice_project\new_samples\dashamularishta 3_60.wav,dashamularishta 3,dashamularishta 3,Correct
