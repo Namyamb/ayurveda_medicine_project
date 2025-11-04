@@ -1,3 +1,4 @@
+<<<<<<< HEAD
 gradio
 librosa
 soundfile
@@ -5,3 +6,12 @@ numpy
 scikit-learn
 joblib
 pandas
+=======
+gradio
+librosa
+soundfile
+numpy
+scikit-learn
+joblib
+pandas
+>>>>>>> 945eea5ea14aa1fbae0f672a84ffc37fa1089138
