@@ -276,9 +276,9 @@ def connect_to_drive():
 # Replace these with your Drive folder IDs
 DRIVE_IDS = {
     "recordings": "<YOUR_RECORDINGS_FOLDER_ID>",
-    "new_samples": "<YOUR_NEW_SAMPLES_FOLDER_ID>",
-    "backups": "<YOUR_BACKUPS_FOLDER_ID>",
-    "root": "<YOUR_MAIN_FOLDER_ID>"
+    "new_samples": "1cXknT8JR2VTCsVk0w_d0YGMgIVHLv-8y",
+    "backups": "1LhOyaEWH0x1w7jr2sg8gyv5TXn0dtChi",
+    "root": "1SCcEDnUm_5cDRtnuIxfWfr2fWS5KOzXQ"
 }
 
 def upload_to_drive(local_path, folder_key="recordings", title=None):
