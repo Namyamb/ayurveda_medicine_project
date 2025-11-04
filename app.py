@@ -492,7 +492,6 @@
 
 
 
-
 # ============================================================
 # 🧠 AyurVoice AI — Ayurvedic Medicine Voice Recognition
 # (Auto-Learning + Google Drive Backup)
@@ -507,7 +506,6 @@ from threading import Thread
 import streamlit as st
 from pydrive2.auth import GoogleAuth
 from pydrive2.drive import GoogleDrive
-from streamlit.runtime.secrets import secrets
 
 # ============================================================
 # 🔑 GOOGLE DRIVE SETUP (via Streamlit Secrets)
@@ -517,7 +515,7 @@ def connect_to_drive():
     """Authenticate Google Drive using Streamlit Secrets (service account)."""
     try:
         with tempfile.NamedTemporaryFile(delete=False, suffix=".json") as f:
-            f.write(json.dumps(secrets["google_service_account"]).encode())
+            f.write(json.dumps(st.secrets["google_service_account"]).encode())
             temp_path = f.name
         gauth = GoogleAuth()
         gauth.LoadCredentialsFile(temp_path)
@@ -526,6 +524,7 @@ def connect_to_drive():
     except Exception as e:
         st.warning(f"⚠️ Could not connect to Google Drive: {e}")
         return None
+
 
 # ✅ Replace these IDs with your real Google Drive folder IDs
 DRIVE_IDS = {
