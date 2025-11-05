@@ -266,13 +266,12 @@
 # st.markdown("---")
 # st.caption("© 2025 AyurVoice Project | Auto-learning • Auto Retrain • Google Drive Backup")
 
-
 # ============================================================
 # 🧠 AyurVoice AI — Ayurvedic Medicine Voice Recognition
-# (Auto-Learning + Google Drive Backup + Auto Retrain)
+# (Auto-Learning + Google Drive Backup + Auto Retrain + Progress)
 # ============================================================
 
-import os, librosa, numpy as np, pandas as pd, joblib, csv, shutil, zipfile, json, tempfile
+import os, librosa, numpy as np, pandas as pd, joblib, csv, shutil, zipfile, json, tempfile, time
 from sklearn.svm import SVC
 from sklearn.preprocessing import StandardScaler
 from sklearn.pipeline import make_pipeline
@@ -282,12 +281,12 @@ import streamlit as st
 from pydrive2.auth import GoogleAuth
 from pydrive2.drive import GoogleDrive
 
-
 # ============================================================
 # 🔑 GOOGLE DRIVE AUTH (via Streamlit Secrets)
 # ============================================================
 
 def connect_to_drive():
+    """Authenticate with Google Drive using Streamlit Secrets."""
     try:
         with tempfile.NamedTemporaryFile(delete=False, suffix=".json") as f:
             f.write(json.dumps(st.secrets["google_service_account"]).encode())
@@ -300,15 +299,13 @@ def connect_to_drive():
         st.warning(f"⚠️ Could not connect to Google Drive: {e}")
         return None
 
-
-# Folder IDs (replace with yours)
+# Replace with your actual folder IDs
 DRIVE_IDS = {
     "recordings": "1cXknT8JR2VTCsVk0w_d0YGMgIVHLv-8y",
     "new_samples": "1cXknT8JR2VTCsVk0w_d0YGMgIVHLv-8y",
     "backups": "1LhOyaEWH0x1w7jr2sg8gyv5TXn0dtChi",
     "root": "1SCcEDnUm_5cDRtnuIxfWfr2fWS5KOzXQ"
 }
-
 
 def upload_to_drive(local_path, folder_key="recordings", title=None):
     drive = connect_to_drive()
@@ -326,9 +323,8 @@ def upload_to_drive(local_path, folder_key="recordings", title=None):
     except Exception as e:
         st.warning(f"⚠️ Upload failed: {e}")
 
-
 # ============================================================
-# 🗂️ LOCAL SETUP
+# 🗂️ LOCAL FOLDERS
 # ============================================================
 
 base_dir = os.path.abspath("ayur_voice_project")
@@ -340,7 +336,6 @@ if not os.path.exists(feedback_file):
     with open(feedback_file, "w", newline="") as f:
         csv.writer(f).writerow(["audio_path", "predicted", "correct", "feedback"])
 
-
 # ============================================================
 # 🎚️ HELPERS
 # ============================================================
@@ -351,14 +346,12 @@ def extract_mfcc(path, n_mfcc=20):
     mfcc = librosa.feature.mfcc(y=y, sr=sr, n_mfcc=n_mfcc)
     return np.mean(mfcc, axis=1)
 
-
 def similarity(path1, path2):
     y1, sr1 = librosa.load(path1, sr=16000)
     y2, sr2 = librosa.load(path2, sr=16000)
     D, wp = dtw(librosa.feature.mfcc(y=y1, sr=sr1),
                 librosa.feature.mfcc(y=y2, sr=sr2), metric="cosine")
     return 1 / (1 + D[-1, -1])
-
 
 def backup_local():
     try:
@@ -375,7 +368,6 @@ def backup_local():
     except Exception as e:
         st.warning(f"⚠️ Backup error: {e}")
 
-
 def calculate_accuracy():
     if not os.path.exists(feedback_file):
         return 0.0
@@ -385,7 +377,6 @@ def calculate_accuracy():
     total = len(df)
     correct = (df["feedback"].str.lower() == "correct").sum()
     return round((correct / total) * 100, 2) if total > 0 else 0.0
-
 
 # ============================================================
 # 🧠 MODEL TRAINING
@@ -412,7 +403,6 @@ def train_svm():
     Thread(target=upload_to_drive, args=(model_path, "backups", "svm_model.joblib")).start()
     return model_path, overall_acc
 
-
 # ============================================================
 # 🎙️ RECORD & RECOGNIZE
 # ============================================================
@@ -420,7 +410,6 @@ def train_svm():
 def save_audio(audio_data, save_path):
     with open(save_path, "wb") as f:
         f.write(audio_data.getbuffer())
-
 
 def record_reference(name, audio_data):
     if audio_data is None or not name:
@@ -433,7 +422,6 @@ def record_reference(name, audio_data):
     Thread(target=upload_to_drive, args=(path, "recordings", os.path.basename(path))).start()
     Thread(target=backup_local).start()
     return f"✅ Saved training sample #{idx} for {name}"
-
 
 def recognize_and_feedback(audio_data):
     if audio_data is None:
@@ -464,12 +452,12 @@ def recognize_and_feedback(audio_data):
     Thread(target=backup_local).start()
     return out, new_path, pred
 
-
 # ============================================================
-# 🧠 FEEDBACK + RETRAIN (Gradio-Style Output)
+# 🧠 FEEDBACK + RETRAIN (Improved Gradio-Style Output)
 # ============================================================
 
 def record_feedback(feedback_choice, correct_name, audio_path, predicted):
+    """Logs feedback, triggers retraining after 5 samples, shows progress."""
     if "feedback_count" not in st.session_state:
         st.session_state["feedback_count"] = 0
 
@@ -488,26 +476,33 @@ def record_feedback(feedback_choice, correct_name, audio_path, predicted):
 
     st.session_state["feedback_count"] += 1
     count = st.session_state["feedback_count"]
-
     st.markdown(f"🧩 **Feedback Count:** {count}/5 before retrain")
 
     if count >= 5:
         st.warning("⚙️ Auto Retraining Triggered — please wait ⏳")
+        progress = st.progress(0)
+        for pct in range(0, 101, 20):
+            progress.progress(pct)
+            time.sleep(0.25)
+
         model_path, acc = train_svm()
         st.session_state["feedback_count"] = 0
-        result = f"""
-        ---
-        ### ✅ Model Retrained Successfully
-        **Model File:** `{os.path.basename(model_path)}`
-        **Updated Accuracy:** {acc:.2f}%
-        🧠 System is now more accurate and adaptive!
-        ---
+        total_samples = len([f for f in os.listdir(os.path.join(base_dir, "recordings")) if f.endswith(".wav")])
+
+        msg = f"""
+        <div style='background-color:#002b36;color:#90ee90;padding:15px;border-radius:10px;'>
+            <h4>✅ Model Retrained Successfully</h4>
+            <b>Model File:</b> <code>{os.path.basename(model_path)}</code><br>
+            <b>Samples Trained On:</b> {total_samples}<br>
+            <b>Updated Accuracy:</b> {acc:.2f}% 🧠<br><br>
+            <b>System is now more accurate and adaptive!</b>
+        </div>
         """
-        st.success(result)
-        return result
+        progress.empty()
+        st.markdown(msg, unsafe_allow_html=True)
+        return
 
-    return f"✅ Feedback saved for **{correct_label}** ({feedback_choice})."
-
+    st.success(f"✅ Feedback saved for **{correct_label}** ({feedback_choice}).")
 
 # ============================================================
 # 🖥️ STREAMLIT UI
@@ -517,7 +512,7 @@ st.set_page_config(page_title="AyurVoice AI + Drive", layout="wide")
 st.title("🧠 AyurVoice AI — Ayurvedic Medicine Voice Recognition")
 st.caption("Auto-learning • Google Drive Backup • Retrains Every 5 Feedbacks")
 
-# Status Summary
+# Summary Panel
 if os.path.exists(feedback_file):
     acc = calculate_accuracy()
     num_rec = len(os.listdir(os.path.join(base_dir, "recordings")))
@@ -568,9 +563,8 @@ with tab2:
         if feedback == "Incorrect":
             correct_name = st.text_input("If incorrect, type correct name:")
         if st.button("Submit Feedback", key="btn_feedback"):
-            msg = record_feedback(feedback, correct_name,
-                                  st.session_state["audio_path"], st.session_state["predicted"])
-            st.info(msg)
+            record_feedback(feedback, correct_name,
+                            st.session_state["audio_path"], st.session_state["predicted"])
 
 st.markdown("---")
 st.caption("© 2025 AyurVoice Project | Auto-learning • Auto Retrain • Google Drive Backup")
