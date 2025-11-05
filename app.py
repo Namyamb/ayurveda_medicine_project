@@ -266,12 +266,332 @@
 # st.markdown("---")
 # st.caption("© 2025 AyurVoice Project | Auto-learning • Auto Retrain • Google Drive Backup")
 
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+# # ============================================================
+# # 🧠 AyurVoice AI — Ayurvedic Medicine Voice Recognition
+# # (Auto-Learning + Dropbox Backup + Auto Retrain)
+# # ============================================================
+
+# import os, librosa, numpy as np, pandas as pd, soundfile as sf, joblib, csv, shutil, zipfile
+# from sklearn.svm import SVC
+# from sklearn.preprocessing import StandardScaler
+# from sklearn.pipeline import make_pipeline
+# from librosa.sequence import dtw
+# from threading import Thread
+# import streamlit as st
+# import dropbox
+
+# # ============================================================
+# # 🔑 DROPBOX SETUP
+# # ============================================================
+
+# def connect_dropbox():
+#     try:
+#         token = st.secrets["dropbox"]["access_token"]
+#         dbx = dropbox.Dropbox(token)
+#         dbx.users_get_current_account()
+#         return dbx
+#     except Exception as e:
+#         st.warning(f"⚠️ Could not connect to Dropbox: {e}")
+#         return None
+
+# def upload_to_dropbox(local_path, folder="recordings"):
+#     """Uploads any file to Dropbox under /AyurVoice/{folder}/"""
+#     dbx = connect_dropbox()
+#     if dbx is None:
+#         return
+#     try:
+#         dest_path = f"/AyurVoice/{folder}/{os.path.basename(local_path)}"
+#         with open(local_path, "rb") as f:
+#             dbx.files_upload(f.read(), dest_path, mode=dropbox.files.WriteMode("overwrite"))
+#         st.success(f"☁️ Uploaded `{os.path.basename(local_path)}` to Dropbox → {folder}")
+#     except Exception as e:
+#         st.warning(f"⚠️ Dropbox upload failed: {e}")
+
+# # ============================================================
+# # 🗂️ LOCAL FOLDERS
+# # ============================================================
+# base_dir = os.path.abspath("ayur_voice_project")
+# for folder in ["recordings", "new_samples", "models", "backups"]:
+#     os.makedirs(os.path.join(base_dir, folder), exist_ok=True)
+
+# feedback_file = os.path.join(base_dir, "feedback_log.csv")
+# if not os.path.exists(feedback_file):
+#     with open(feedback_file, "w", newline="") as f:
+#         csv.writer(f).writerow(["audio_path", "predicted", "correct", "feedback"])
+
+# # ============================================================
+# # 🎚️ HELPER FUNCTIONS
+# # ============================================================
+
+# def extract_mfcc(path, n_mfcc=20):
+#     y, sr = librosa.load(path, sr=16000)
+#     y, _ = librosa.effects.trim(y)
+#     mfcc = librosa.feature.mfcc(y=y, sr=sr, n_mfcc=n_mfcc)
+#     return np.mean(mfcc, axis=1)
+
+# def similarity(path1, path2):
+#     y1, sr1 = librosa.load(path1, sr=16000)
+#     y2, sr2 = librosa.load(path2, sr=16000)
+#     D, wp = dtw(librosa.feature.mfcc(y=y1, sr=sr1),
+#                 librosa.feature.mfcc(y=y2, sr=sr2), metric="cosine")
+#     return 1 / (1 + D[-1, -1])
+
+# def backup_local():
+#     """Compress the project folder and upload ZIP to Dropbox."""
+#     try:
+#         backup_zip = os.path.join(base_dir, "backups", "ayurvoice_backup.zip")
+#         with zipfile.ZipFile(backup_zip, "w", compression=zipfile.ZIP_DEFLATED, allowZip64=True) as zipf:
+#             for root, dirs, files in os.walk(base_dir):
+#                 if "backups" in root:
+#                     continue
+#                 for file in files:
+#                     path = os.path.join(root, file)
+#                     arcname = os.path.relpath(path, base_dir)
+#                     zipf.write(path, arcname)
+#         Thread(target=upload_to_dropbox, args=(backup_zip, "backups")).start()
+#     except Exception as e:
+#         st.warning(f"⚠️ Backup error: {e}")
+
+# def calculate_accuracy():
+#     if not os.path.exists(feedback_file):
+#         return 0.0
+#     df = pd.read_csv(feedback_file)
+#     if df.empty or "feedback" not in df.columns:
+#         return 0.0
+#     total = len(df)
+#     correct = (df["feedback"].str.lower() == "correct").sum()
+#     return round((correct / total) * 100, 2) if total > 0 else 0.0
+
+# # ============================================================
+# # 🧠 MODEL TRAINING
+# # ============================================================
+
+# def train_svm():
+#     folder = os.path.join(base_dir, "recordings")
+#     files = [f for f in os.listdir(folder) if f.endswith(".wav")]
+#     if not files:
+#         st.warning("❌ No recordings available.")
+#         return None, 0, 0
+#     X, y = [], []
+#     for f in files:
+#         X.append(extract_mfcc(os.path.join(folder, f)))
+#         y.append("_".join(f.split("_")[:-1]))
+#     model = make_pipeline(StandardScaler(), SVC(kernel='rbf', probability=True))
+#     model.fit(np.array(X), np.array(y))
+#     model_path = os.path.join(base_dir, "models", "svm_model.joblib")
+#     joblib.dump(model, model_path)
+#     Thread(target=upload_to_dropbox, args=(model_path, "models")).start()
+#     Thread(target=backup_local).start()
+#     train_acc = model.score(np.array(X), np.array(y))
+#     feedback_acc = calculate_accuracy()
+#     overall_acc = round((train_acc * 0.7 + feedback_acc * 0.3) * 100, 2)
+#     return model_path, overall_acc, len(files)
+
+# # ============================================================
+# # 🎙️ RECORDING HANDLERS
+# # ============================================================
+
+# def save_audio(audio_data, save_path):
+#     with open(save_path, "wb") as f:
+#         f.write(audio_data.getbuffer())
+
+# def record_reference(name, audio_data):
+#     if audio_data is None or not name:
+#         return "⚠️ Enter medicine name & record."
+#     base_name = name.strip().replace(" ", "_").lower()
+#     folder = os.path.join(base_dir, "recordings")
+#     index = len([f for f in os.listdir(folder) if f.startswith(base_name)]) + 1
+#     path = os.path.join(folder, f"{base_name}_{index}.wav")
+#     save_audio(audio_data, path)
+#     Thread(target=upload_to_dropbox, args=(path, "recordings")).start()
+#     Thread(target=backup_local).start()
+#     return f"✅ Saved training sample #{index} for {name}"
+
+# def recognize_and_feedback(audio_data):
+#     if audio_data is None:
+#         return "⚠️ Please record or upload.", None, None
+#     temp_path = os.path.join(base_dir, "temp_test.wav")
+#     save_audio(audio_data, temp_path)
+#     refs = [f for f in os.listdir(os.path.join(base_dir, "recordings")) if f.endswith(".wav")]
+#     if not refs:
+#         return "❌ No reference recordings found.", None, None
+#     scores = []
+#     for ref in refs:
+#         ref_path = os.path.join(base_dir, "recordings", ref)
+#         s = similarity(temp_path, ref_path)
+#         base_name = "_".join(ref.replace(".wav", "").split("_")[:-1]) or ref.replace(".wav", "")
+#         scores.append((base_name.replace("_", " "), s))
+#     scores.sort(key=lambda x: x[1], reverse=True)
+#     top3 = scores[:3]
+#     pred, _ = top3[0]
+#     pred = pred.strip().lower()
+#     out = "🎯 **Top 3 Matches (DTW Similarity):**\n"
+#     for n, s in top3:
+#         out += f"- {n} — {s*100:.1f}%\n"
+#     out += f"\n✅ **Predicted Medicine:** {pred}\n"
+#     new_path = os.path.join(base_dir, "new_samples",
+#                             f"{pred}_{len(os.listdir(os.path.join(base_dir,'new_samples')))+1}.wav")
+#     shutil.copy(temp_path, new_path)
+#     Thread(target=upload_to_dropbox, args=(new_path, "new_samples")).start()
+#     Thread(target=backup_local).start()
+#     return out, new_path, pred
+
+# # ============================================================
+# # 🧠 FEEDBACK + AUTO RETRAIN
+# # ============================================================
+
+# feedback_counter = {"count": 0}
+
+# def record_feedback(feedback_choice, correct_name, audio_path, predicted):
+#     if not audio_path:
+#         return "⚠️ No test sample found."
+#     correct_label = predicted
+#     if feedback_choice == "Incorrect" and correct_name:
+#         correct_label = correct_name.strip().replace(" ", "_").lower()
+#     with open(feedback_file, "a", newline="") as f:
+#         csv.writer(f).writerow([audio_path, predicted, correct_label, feedback_choice])
+#     Thread(target=upload_to_dropbox, args=(feedback_file, "feedback")).start()
+#     Thread(target=backup_local).start()
+
+#     feedback_counter["count"] += 1
+#     msg = f"📝 Feedback saved: {feedback_choice}. Added for `{correct_label}`.\n"
+#     msg += f"🧩 Feedback count: {feedback_counter['count']}/5 before next retrain."
+
+#     if feedback_counter["count"] >= 5:
+#         st.info("⚙️ 5 feedbacks reached → Retraining model... Please wait ⏳")
+#         model_path, acc, n_samples = train_svm()
+#         msg = f"""
+# ✅ **Model Retrained Successfully**
+
+# **Model File:** `{os.path.basename(model_path)}`
+# **Samples Trained On:** {n_samples}
+# **Updated Accuracy:** {acc:.2f}% 🧠  
+# _System is now more accurate and adaptive!_
+# """
+#         feedback_counter["count"] = 0
+
+#     return msg
+
+# # ============================================================
+# # 🖥️ STREAMLIT UI
+# # ============================================================
+
+# st.set_page_config(page_title="AyurVoice AI + Dropbox", layout="wide")
+# st.title("🧠 AyurVoice AI — Ayurvedic Medicine Voice Recognition")
+# st.caption("Auto-learning • Dropbox Backup • Auto Retrain every 5 feedbacks")
+
+# tab1, tab2 = st.tabs(["🎙️ Record Reference", "🔍 Recognition & Feedback"])
+
+# # TAB 1
+# with tab1:
+#     st.subheader("Add New Medicine Samples")
+#     name = st.text_input("Enter Medicine Name:")
+#     recorded_audio = st.audio_input("🎧 Record new medicine", sample_rate=16000, key="ref_mic")
+#     uploaded_audio = st.file_uploader("📂 Or upload .wav file", type=["wav"], key="ref_upload")
+#     audio_data = recorded_audio or uploaded_audio
+#     if st.button("Save Recording", key="btn_save_record"):
+#         if name and audio_data:
+#             st.success(record_reference(name, audio_data))
+#         else:
+#             st.warning("⚠️ Please enter medicine name and record/upload audio.")
+
+# # TAB 2
+# with tab2:
+#     st.subheader("Recognize & Provide Feedback")
+#     test_audio = st.audio_input("🎧 Record test sample", sample_rate=16000, key="test_mic")
+#     uploaded_test = st.file_uploader("📂 Or upload test .wav", type=["wav"], key="test_upload")
+#     test_data = test_audio or uploaded_test
+#     if st.button("Recognize", key="btn_recognize"):
+#         if test_data:
+#             result, audio_path, predicted = recognize_and_feedback(test_data)
+#             st.markdown(result)
+#             st.session_state["audio_path"] = audio_path
+#             st.session_state["predicted"] = predicted
+#         else:
+#             st.warning("⚠️ Please record or upload an audio sample.")
+#     if "audio_path" in st.session_state:
+#         st.divider()
+#         feedback = st.radio("Was the prediction correct?", ["Correct", "Incorrect"], horizontal=True)
+#         correct_name = ""
+#         if feedback == "Incorrect":
+#             correct_name = st.text_input("If incorrect, type correct name:")
+#         if st.button("Submit Feedback", key="btn_feedback"):
+#             msg = record_feedback(feedback, correct_name, st.session_state["audio_path"], st.session_state["predicted"])
+#             st.info(msg)
+
+# st.markdown("---")
+# st.caption("© 2025 AyurVoice Project | Auto-learning • Auto Retrain • Dropbox Backup")
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 # ============================================================
-# 🧠 AyurVoice AI — Ayurvedic Medicine Voice Recognition
-# (Auto-Learning + Dropbox Backup + Auto Retrain)
+# 🧠 AyurVoice AI — Fully Cloud-Based (Dropbox Only)
 # ============================================================
 
-import os, librosa, numpy as np, pandas as pd, soundfile as sf, joblib, csv, shutil, zipfile
+import os, io, librosa, numpy as np, pandas as pd, joblib, csv, tempfile
 from sklearn.svm import SVC
 from sklearn.preprocessing import StandardScaler
 from sklearn.pipeline import make_pipeline
@@ -281,194 +601,206 @@ import streamlit as st
 import dropbox
 
 # ============================================================
-# 🔑 DROPBOX SETUP
+# 🔑 DROPBOX CONNECTION
 # ============================================================
 
 def connect_dropbox():
+    """Connect to Dropbox using the Streamlit secret token."""
     try:
         token = st.secrets["dropbox"]["access_token"]
         dbx = dropbox.Dropbox(token)
         dbx.users_get_current_account()
         return dbx
     except Exception as e:
-        st.warning(f"⚠️ Could not connect to Dropbox: {e}")
+        st.error(f"⚠️ Dropbox connection failed: {e}")
         return None
 
-def upload_to_dropbox(local_path, folder="recordings"):
-    """Uploads any file to Dropbox under /AyurVoice/{folder}/"""
-    dbx = connect_dropbox()
-    if dbx is None:
-        return
+dbx = connect_dropbox()
+
+# ============================================================
+# 🗂️ CLOUD FOLDER STRUCTURE
+# ============================================================
+
+BASE_PATH = "/AyurVoice"
+FOLDERS = ["recordings", "new_samples", "models", "backups", "feedback"]
+
+def ensure_dropbox_structure():
+    """Ensure AyurVoice folders exist on Dropbox."""
+    for folder in FOLDERS:
+        path = f"{BASE_PATH}/{folder}"
+        try:
+            dbx.files_create_folder_v2(path)
+        except dropbox.exceptions.ApiError:
+            pass  # already exists
+
+ensure_dropbox_structure()
+
+# ============================================================
+# 🧩 BASIC UTILITIES
+# ============================================================
+
+def upload_bytes_to_dropbox(bytes_data, filename, folder):
+    """Upload binary data directly to Dropbox."""
+    path = f"{BASE_PATH}/{folder}/{filename}"
+    dbx.files_upload(bytes_data, path, mode=dropbox.files.WriteMode("overwrite"))
+    return path
+
+def download_dropbox_file(path):
+    """Download a Dropbox file and return its bytes."""
+    _, res = dbx.files_download(path)
+    return io.BytesIO(res.content)
+
+def list_dropbox_files(folder):
+    """List files inside a Dropbox folder."""
     try:
-        dest_path = f"/AyurVoice/{folder}/{os.path.basename(local_path)}"
-        with open(local_path, "rb") as f:
-            dbx.files_upload(f.read(), dest_path, mode=dropbox.files.WriteMode("overwrite"))
-        st.success(f"☁️ Uploaded `{os.path.basename(local_path)}` to Dropbox → {folder}")
-    except Exception as e:
-        st.warning(f"⚠️ Dropbox upload failed: {e}")
+        res = dbx.files_list_folder(f"{BASE_PATH}/{folder}")
+        return [f.path_lower for f in res.entries if isinstance(f, dropbox.files.FileMetadata)]
+    except dropbox.exceptions.ApiError:
+        return []
 
 # ============================================================
-# 🗂️ LOCAL FOLDERS
-# ============================================================
-base_dir = os.path.abspath("ayur_voice_project")
-for folder in ["recordings", "new_samples", "models", "backups"]:
-    os.makedirs(os.path.join(base_dir, folder), exist_ok=True)
-
-feedback_file = os.path.join(base_dir, "feedback_log.csv")
-if not os.path.exists(feedback_file):
-    with open(feedback_file, "w", newline="") as f:
-        csv.writer(f).writerow(["audio_path", "predicted", "correct", "feedback"])
-
-# ============================================================
-# 🎚️ HELPER FUNCTIONS
+# 🎚️ FEATURE EXTRACTION + SIMILARITY
 # ============================================================
 
-def extract_mfcc(path, n_mfcc=20):
-    y, sr = librosa.load(path, sr=16000)
-    y, _ = librosa.effects.trim(y)
-    mfcc = librosa.feature.mfcc(y=y, sr=sr, n_mfcc=n_mfcc)
-    return np.mean(mfcc, axis=1)
+def extract_mfcc_from_bytes(file_bytes, n_mfcc=20):
+    """Extract MFCCs from audio bytes."""
+    with tempfile.NamedTemporaryFile(delete=False, suffix=".wav") as tmp:
+        tmp.write(file_bytes.read())
+        tmp.flush()
+        y, sr = librosa.load(tmp.name, sr=16000)
+        y, _ = librosa.effects.trim(y)
+        mfcc = librosa.feature.mfcc(y=y, sr=sr, n_mfcc=n_mfcc)
+        return np.mean(mfcc, axis=1)
 
-def similarity(path1, path2):
-    y1, sr1 = librosa.load(path1, sr=16000)
-    y2, sr2 = librosa.load(path2, sr=16000)
-    D, wp = dtw(librosa.feature.mfcc(y=y1, sr=sr1),
-                librosa.feature.mfcc(y=y2, sr=sr2), metric="cosine")
+def dtw_similarity(vec1, vec2):
+    """Compute DTW similarity between two feature vectors."""
+    D, wp = dtw(vec1.reshape(-1, 1), vec2.reshape(-1, 1), metric="euclidean")
     return 1 / (1 + D[-1, -1])
 
-def backup_local():
-    """Compress the project folder and upload ZIP to Dropbox."""
-    try:
-        backup_zip = os.path.join(base_dir, "backups", "ayurvoice_backup.zip")
-        with zipfile.ZipFile(backup_zip, "w", compression=zipfile.ZIP_DEFLATED, allowZip64=True) as zipf:
-            for root, dirs, files in os.walk(base_dir):
-                if "backups" in root:
-                    continue
-                for file in files:
-                    path = os.path.join(root, file)
-                    arcname = os.path.relpath(path, base_dir)
-                    zipf.write(path, arcname)
-        Thread(target=upload_to_dropbox, args=(backup_zip, "backups")).start()
-    except Exception as e:
-        st.warning(f"⚠️ Backup error: {e}")
-
-def calculate_accuracy():
-    if not os.path.exists(feedback_file):
-        return 0.0
-    df = pd.read_csv(feedback_file)
-    if df.empty or "feedback" not in df.columns:
-        return 0.0
-    total = len(df)
-    correct = (df["feedback"].str.lower() == "correct").sum()
-    return round((correct / total) * 100, 2) if total > 0 else 0.0
-
 # ============================================================
-# 🧠 MODEL TRAINING
+# 🧠 MODEL TRAINING + RETRAINING
 # ============================================================
 
-def train_svm():
-    folder = os.path.join(base_dir, "recordings")
-    files = [f for f in os.listdir(folder) if f.endswith(".wav")]
+def train_model_from_dropbox():
+    """Train or retrain SVM from Dropbox recordings."""
+    files = list_dropbox_files("recordings")
     if not files:
-        st.warning("❌ No recordings available.")
+        st.warning("❌ No recordings found in Dropbox.")
         return None, 0, 0
+
     X, y = [], []
-    for f in files:
-        X.append(extract_mfcc(os.path.join(folder, f)))
-        y.append("_".join(f.split("_")[:-1]))
-    model = make_pipeline(StandardScaler(), SVC(kernel='rbf', probability=True))
+    for path in files:
+        name = os.path.basename(path).replace(".wav", "")
+        label = "_".join(name.split("_")[:-1])
+        audio_bytes = download_dropbox_file(path)
+        features = extract_mfcc_from_bytes(audio_bytes)
+        X.append(features)
+        y.append(label)
+
+    model = make_pipeline(StandardScaler(), SVC(kernel="rbf", probability=True))
     model.fit(np.array(X), np.array(y))
-    model_path = os.path.join(base_dir, "models", "svm_model.joblib")
-    joblib.dump(model, model_path)
-    Thread(target=upload_to_dropbox, args=(model_path, "models")).start()
-    Thread(target=backup_local).start()
-    train_acc = model.score(np.array(X), np.array(y))
-    feedback_acc = calculate_accuracy()
-    overall_acc = round((train_acc * 0.7 + feedback_acc * 0.3) * 100, 2)
-    return model_path, overall_acc, len(files)
+
+    model_bytes = io.BytesIO()
+    joblib.dump(model, model_bytes)
+    model_bytes.seek(0)
+
+    upload_bytes_to_dropbox(model_bytes.read(), "svm_model.joblib", "models")
+
+    train_acc = model.score(np.array(X), np.array(y)) * 100
+    return model, train_acc, len(files)
 
 # ============================================================
 # 🎙️ RECORDING HANDLERS
 # ============================================================
 
-def save_audio(audio_data, save_path):
-    with open(save_path, "wb") as f:
-        f.write(audio_data.getbuffer())
-
 def record_reference(name, audio_data):
-    if audio_data is None or not name:
-        return "⚠️ Enter medicine name & record."
+    """Save new medicine sample directly to Dropbox."""
+    if not name or not audio_data:
+        return "⚠️ Please provide a name and record audio."
     base_name = name.strip().replace(" ", "_").lower()
-    folder = os.path.join(base_dir, "recordings")
-    index = len([f for f in os.listdir(folder) if f.startswith(base_name)]) + 1
-    path = os.path.join(folder, f"{base_name}_{index}.wav")
-    save_audio(audio_data, path)
-    Thread(target=upload_to_dropbox, args=(path, "recordings")).start()
-    Thread(target=backup_local).start()
-    return f"✅ Saved training sample #{index} for {name}"
+    count = len(list_dropbox_files("recordings")) + 1
+    filename = f"{base_name}_{count}.wav"
+    upload_bytes_to_dropbox(audio_data.getbuffer(), filename, "recordings")
+    return f"✅ Saved training sample #{count} for {name}"
 
-def recognize_and_feedback(audio_data):
-    if audio_data is None:
-        return "⚠️ Please record or upload.", None, None
-    temp_path = os.path.join(base_dir, "temp_test.wav")
-    save_audio(audio_data, temp_path)
-    refs = [f for f in os.listdir(os.path.join(base_dir, "recordings")) if f.endswith(".wav")]
+def recognize_from_dropbox(audio_data):
+    """Recognize medicine by comparing with Dropbox recordings."""
+    if not audio_data:
+        return "⚠️ Please record or upload a test sample.", None
+
+    # Extract test MFCCs
+    test_features = extract_mfcc_from_bytes(io.BytesIO(audio_data.getbuffer()))
+
+    refs = list_dropbox_files("recordings")
     if not refs:
-        return "❌ No reference recordings found.", None, None
+        return "❌ No reference recordings found in Dropbox.", None
+
     scores = []
-    for ref in refs:
-        ref_path = os.path.join(base_dir, "recordings", ref)
-        s = similarity(temp_path, ref_path)
-        base_name = "_".join(ref.replace(".wav", "").split("_")[:-1]) or ref.replace(".wav", "")
-        scores.append((base_name.replace("_", " "), s))
+    for ref_path in refs:
+        ref_bytes = download_dropbox_file(ref_path)
+        ref_features = extract_mfcc_from_bytes(ref_bytes)
+        sim = dtw_similarity(test_features, ref_features)
+        base_name = "_".join(os.path.basename(ref_path).replace(".wav", "").split("_")[:-1])
+        scores.append((base_name, sim))
+
     scores.sort(key=lambda x: x[1], reverse=True)
     top3 = scores[:3]
-    pred, _ = top3[0]
-    pred = pred.strip().lower()
-    out = "🎯 **Top 3 Matches (DTW Similarity):**\n"
+    pred = top3[0][0] if top3 else "Unknown"
+
+    # Upload test sample for tracking
+    new_name = f"{pred}_{len(list_dropbox_files('new_samples'))+1}.wav"
+    upload_bytes_to_dropbox(audio_data.getbuffer(), new_name, "new_samples")
+
+    result_text = "🎯 **Top 3 Matches:**\n"
     for n, s in top3:
-        out += f"- {n} — {s*100:.1f}%\n"
-    out += f"\n✅ **Predicted Medicine:** {pred}\n"
-    new_path = os.path.join(base_dir, "new_samples",
-                            f"{pred}_{len(os.listdir(os.path.join(base_dir,'new_samples')))+1}.wav")
-    shutil.copy(temp_path, new_path)
-    Thread(target=upload_to_dropbox, args=(new_path, "new_samples")).start()
-    Thread(target=backup_local).start()
-    return out, new_path, pred
+        result_text += f"- {n} — {s*100:.2f}%\n"
+    result_text += f"\n✅ **Predicted Medicine:** {pred}\n"
+
+    return result_text, pred
 
 # ============================================================
-# 🧠 FEEDBACK + AUTO RETRAIN
+# 🧠 FEEDBACK + AUTO RETRAIN LOGIC
 # ============================================================
 
-feedback_counter = {"count": 0}
+if "feedback_count" not in st.session_state:
+    st.session_state.feedback_count = 0
 
-def record_feedback(feedback_choice, correct_name, audio_path, predicted):
-    if not audio_path:
-        return "⚠️ No test sample found."
+def record_feedback(feedback_choice, correct_name, predicted):
+    """Handle feedback and trigger retraining after 5 feedbacks."""
     correct_label = predicted
     if feedback_choice == "Incorrect" and correct_name:
         correct_label = correct_name.strip().replace(" ", "_").lower()
-    with open(feedback_file, "a", newline="") as f:
-        csv.writer(f).writerow([audio_path, predicted, correct_label, feedback_choice])
-    Thread(target=upload_to_dropbox, args=(feedback_file, "feedback")).start()
-    Thread(target=backup_local).start()
 
-    feedback_counter["count"] += 1
-    msg = f"📝 Feedback saved: {feedback_choice}. Added for `{correct_label}`.\n"
-    msg += f"🧩 Feedback count: {feedback_counter['count']}/5 before next retrain."
+    log_row = f"{predicted},{correct_label},{feedback_choice}\n"
 
-    if feedback_counter["count"] >= 5:
-        st.info("⚙️ 5 feedbacks reached → Retraining model... Please wait ⏳")
-        model_path, acc, n_samples = train_svm()
+    try:
+        feedback_files = list_dropbox_files("feedback")
+        log_path = f"{BASE_PATH}/feedback/feedback_log.csv"
+        existing = None
+        if feedback_files:
+            try:
+                existing = download_dropbox_file(log_path).getvalue().decode()
+            except Exception:
+                existing = ""
+        updated = (existing or "predicted,correct,feedback\n") + log_row
+        upload_bytes_to_dropbox(updated.encode(), "feedback_log.csv", "feedback")
+    except Exception as e:
+        st.warning(f"⚠️ Feedback save failed: {e}")
+
+    # Retraining trigger
+    st.session_state.feedback_count += 1
+    msg = f"📝 Feedback saved: {feedback_choice}. Count: {st.session_state.feedback_count}/5"
+
+    if st.session_state.feedback_count >= 5:
+        st.info("⚙️ 5 feedbacks reached → Retraining model... ⏳")
+        model, acc, total = train_model_from_dropbox()
         msg = f"""
-✅ **Model Retrained Successfully**
-
-**Model File:** `{os.path.basename(model_path)}`
-**Samples Trained On:** {n_samples}
-**Updated Accuracy:** {acc:.2f}% 🧠  
-_System is now more accurate and adaptive!_
+✅ **Model Retrained Successfully!**
+**Samples Trained:** {total}  
+**Accuracy:** {acc:.2f}%  
+🧠 Model updated and saved on Dropbox.
 """
-        feedback_counter["count"] = 0
+        st.session_state.feedback_count = 0
 
     return msg
 
@@ -476,48 +808,48 @@ _System is now more accurate and adaptive!_
 # 🖥️ STREAMLIT UI
 # ============================================================
 
-st.set_page_config(page_title="AyurVoice AI + Dropbox", layout="wide")
-st.title("🧠 AyurVoice AI — Ayurvedic Medicine Voice Recognition")
-st.caption("Auto-learning • Dropbox Backup • Auto Retrain every 5 feedbacks")
+st.set_page_config(page_title="AyurVoice AI (Dropbox Cloud)", layout="wide")
+st.title("🧠 AyurVoice AI — Fully Cloud-Based Voice Recognition")
+st.caption("🎙️ Record → Recognize → Learn → Auto-Retrain → Dropbox Synced")
 
 tab1, tab2 = st.tabs(["🎙️ Record Reference", "🔍 Recognition & Feedback"])
 
-# TAB 1
+# --- RECORDING TAB ---
 with tab1:
     st.subheader("Add New Medicine Samples")
     name = st.text_input("Enter Medicine Name:")
-    recorded_audio = st.audio_input("🎧 Record new medicine", sample_rate=16000, key="ref_mic")
-    uploaded_audio = st.file_uploader("📂 Or upload .wav file", type=["wav"], key="ref_upload")
+    recorded_audio = st.audio_input("🎧 Record new medicine", sample_rate=16000)
+    uploaded_audio = st.file_uploader("📂 Or upload .wav", type=["wav"])
     audio_data = recorded_audio or uploaded_audio
-    if st.button("Save Recording", key="btn_save_record"):
+    if st.button("Save Recording"):
         if name and audio_data:
             st.success(record_reference(name, audio_data))
         else:
-            st.warning("⚠️ Please enter medicine name and record/upload audio.")
+            st.warning("⚠️ Please enter name and record/upload.")
 
-# TAB 2
+# --- RECOGNITION TAB ---
 with tab2:
     st.subheader("Recognize & Provide Feedback")
-    test_audio = st.audio_input("🎧 Record test sample", sample_rate=16000, key="test_mic")
-    uploaded_test = st.file_uploader("📂 Or upload test .wav", type=["wav"], key="test_upload")
+    test_audio = st.audio_input("🎧 Record test sample", sample_rate=16000)
+    uploaded_test = st.file_uploader("📂 Or upload test .wav", type=["wav"])
     test_data = test_audio or uploaded_test
-    if st.button("Recognize", key="btn_recognize"):
+    if st.button("Recognize"):
         if test_data:
-            result, audio_path, predicted = recognize_and_feedback(test_data)
+            result, predicted = recognize_from_dropbox(test_data)
             st.markdown(result)
-            st.session_state["audio_path"] = audio_path
             st.session_state["predicted"] = predicted
         else:
             st.warning("⚠️ Please record or upload an audio sample.")
-    if "audio_path" in st.session_state:
+
+    if "predicted" in st.session_state:
         st.divider()
         feedback = st.radio("Was the prediction correct?", ["Correct", "Incorrect"], horizontal=True)
         correct_name = ""
         if feedback == "Incorrect":
-            correct_name = st.text_input("If incorrect, type correct name:")
-        if st.button("Submit Feedback", key="btn_feedback"):
-            msg = record_feedback(feedback, correct_name, st.session_state["audio_path"], st.session_state["predicted"])
+            correct_name = st.text_input("If incorrect, enter correct name:")
+        if st.button("Submit Feedback"):
+            msg = record_feedback(feedback, correct_name, st.session_state["predicted"])
             st.info(msg)
 
 st.markdown("---")
-st.caption("© 2025 AyurVoice Project | Auto-learning • Auto Retrain • Dropbox Backup")
+st.caption("© 2025 AyurVoice Cloud | Dropbox-Only • Auto-Retrain • Always Synced")
