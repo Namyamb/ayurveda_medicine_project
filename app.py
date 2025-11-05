@@ -269,11 +269,9 @@
 
 
 
-
-
 # ============================================================
 # 🧠 AyurVoice AI — Ayurvedic Medicine Voice Recognition
-# (Auto-Learning + Google Drive Backup + Auto Retrain + Live Accuracy)
+# (Auto-Learning + Google Drive Backup + Auto Retrain + Persistent Counter)
 # ============================================================
 
 import os, librosa, numpy as np, pandas as pd, soundfile as sf, joblib, csv, shutil, zipfile, json, tempfile
@@ -463,12 +461,13 @@ def recognize_and_feedback(audio_data):
     return out, new_path, pred
 
 # ============================================================
-# 🧠 FEEDBACK + AUTO RETRAIN LOGIC
+# 🧠 FEEDBACK + AUTO RETRAIN (Persistent Counter)
 # ============================================================
 
-feedback_counter = {"count": 0}
-
 def record_feedback(feedback_choice, correct_name, audio_path, predicted):
+    if "feedback_count" not in st.session_state:
+        st.session_state["feedback_count"] = 0
+
     if not audio_path:
         return "⚠️ No test sample found."
 
@@ -476,26 +475,27 @@ def record_feedback(feedback_choice, correct_name, audio_path, predicted):
     if feedback_choice == "Incorrect" and correct_name:
         correct_label = correct_name.strip().replace(" ", "_").lower()
 
-    # Save feedback to CSV
+    # Log feedback to CSV
     with open(feedback_file, "a", newline="") as f:
         csv.writer(f).writerow([audio_path, predicted, correct_label, feedback_choice])
 
-    # Upload and backup
     Thread(target=upload_to_drive, args=(feedback_file, "root", "feedback_log.csv")).start()
     Thread(target=backup_local).start()
 
-    feedback_counter["count"] += 1
-    msg = f"📝 Feedback saved: {feedback_choice}. Added as training data for '{correct_label}'."
+    # Increment persistent counter
+    st.session_state["feedback_count"] += 1
+    current_count = st.session_state["feedback_count"]
 
-    # Auto retrain after 5 feedbacks
-    if feedback_counter["count"] >= 5:
+    msg = f"📝 Feedback saved: {feedback_choice}. Added for '{correct_label}'."
+    st.info(f"🧩 Feedback count: {current_count}/5 before next retrain")
+
+    # --- Retrain after 5 feedbacks ---
+    if current_count >= 5:
         st.warning("⚙️ 5 feedbacks reached → Retraining model... Please wait ⏳")
         model_path, acc = train_svm()
-        st.success(f"📈 Model retrained successfully!\n\n✅ New Accuracy: {acc}%")
-        feedback_counter["count"] = 0
+        st.success(f"📈 Model retrained successfully! ✅ New Accuracy: {acc}%")
+        st.session_state["feedback_count"] = 0
         msg += f"\n📈 Model retrained successfully. New Accuracy: {acc}%"
-    else:
-        st.info(f"🧩 Feedback count: {feedback_counter['count']}/5 before next retrain")
 
     return msg
 
@@ -511,12 +511,13 @@ st.caption("Auto-learning • Google Drive Backup • Retrains Every 5 Feedbacks
 if os.path.exists(feedback_file):
     acc = calculate_accuracy()
     num_rec = len(os.listdir(os.path.join(base_dir, "recordings")))
+    count = st.session_state.get("feedback_count", 0)
     st.markdown(f"""
     <div style='background-color:#f0f2f6;padding:10px;border-radius:10px;margin-bottom:15px;'>
         <b>📊 Current Model Status:</b><br>
         🧾 <b>Training Samples:</b> {num_rec}<br>
         🎯 <b>Feedback Accuracy:</b> {acc}%<br>
-        🔁 <b>Next Retrain In:</b> {max(0, 5 - feedback_counter['count'])} feedback(s)
+        🔁 <b>Next Retrain In:</b> {max(0, 5 - count)} feedback(s)
     </div>
     """, unsafe_allow_html=True)
 
