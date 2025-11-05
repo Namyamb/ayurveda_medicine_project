@@ -268,65 +268,48 @@
 
 # ============================================================
 # 🧠 AyurVoice AI — Ayurvedic Medicine Voice Recognition
-# (Auto-Learning + Google Drive Backup + Auto Retrain + Progress)
+# (Auto-Learning + Dropbox Backup + Auto Retrain)
 # ============================================================
 
-import os, librosa, numpy as np, pandas as pd, joblib, csv, shutil, zipfile, json, tempfile, time
+import os, librosa, numpy as np, pandas as pd, soundfile as sf, joblib, csv, shutil, zipfile
 from sklearn.svm import SVC
 from sklearn.preprocessing import StandardScaler
 from sklearn.pipeline import make_pipeline
 from librosa.sequence import dtw
 from threading import Thread
 import streamlit as st
-from pydrive2.auth import GoogleAuth
-from pydrive2.drive import GoogleDrive
+import dropbox
 
 # ============================================================
-# 🔑 GOOGLE DRIVE AUTH (via Streamlit Secrets)
+# 🔑 DROPBOX SETUP
 # ============================================================
 
-def connect_to_drive():
-    """Authenticate with Google Drive using Streamlit Secrets."""
+def connect_dropbox():
     try:
-        with tempfile.NamedTemporaryFile(delete=False, suffix=".json") as f:
-            f.write(json.dumps(st.secrets["google_service_account"]).encode())
-            temp_path = f.name
-        gauth = GoogleAuth()
-        gauth.LoadCredentialsFile(temp_path)
-        gauth.ServiceAuth()
-        return GoogleDrive(gauth)
+        token = st.secrets["dropbox"]["access_token"]
+        dbx = dropbox.Dropbox(token)
+        dbx.users_get_current_account()
+        return dbx
     except Exception as e:
-        st.warning(f"⚠️ Could not connect to Google Drive: {e}")
+        st.warning(f"⚠️ Could not connect to Dropbox: {e}")
         return None
 
-# Replace with your actual folder IDs
-DRIVE_IDS = {
-    "recordings": "1Ji6B8ejAt93W0smT0bsdFpXcr04EHbtC",
-    "new_samples": "1cXknT8JR2VTCsVk0w_d0YGMgIVHLv-8y",
-    "backups": "1LhOyaEWH0x1w7jr2sg8gyv5TXn0dtChi",
-    "root": "1SCcEDnUm_5cDRtnuIxfWfr2fWS5KOzXQ"
-}
-
-def upload_to_drive(local_path, folder_key="recordings", title=None):
-    drive = connect_to_drive()
-    if drive is None:
+def upload_to_dropbox(local_path, folder="recordings"):
+    """Uploads any file to Dropbox under /AyurVoice/{folder}/"""
+    dbx = connect_dropbox()
+    if dbx is None:
         return
     try:
-        folder_id = DRIVE_IDS.get(folder_key) or DRIVE_IDS["root"]
-        file_drive = drive.CreateFile({
-            "title": title or os.path.basename(local_path),
-            "parents": [{"id": folder_id}]
-        })
-        file_drive.SetContentFile(local_path)
-        file_drive.Upload()
-        st.info(f"☁️ Uploaded {os.path.basename(local_path)} to Google Drive ({folder_key})")
+        dest_path = f"/AyurVoice/{folder}/{os.path.basename(local_path)}"
+        with open(local_path, "rb") as f:
+            dbx.files_upload(f.read(), dest_path, mode=dropbox.files.WriteMode("overwrite"))
+        st.success(f"☁️ Uploaded `{os.path.basename(local_path)}` to Dropbox → {folder}")
     except Exception as e:
-        st.warning(f"⚠️ Upload failed: {e}")
+        st.warning(f"⚠️ Dropbox upload failed: {e}")
 
 # ============================================================
 # 🗂️ LOCAL FOLDERS
 # ============================================================
-
 base_dir = os.path.abspath("ayur_voice_project")
 for folder in ["recordings", "new_samples", "models", "backups"]:
     os.makedirs(os.path.join(base_dir, folder), exist_ok=True)
@@ -337,7 +320,7 @@ if not os.path.exists(feedback_file):
         csv.writer(f).writerow(["audio_path", "predicted", "correct", "feedback"])
 
 # ============================================================
-# 🎚️ HELPERS
+# 🎚️ HELPER FUNCTIONS
 # ============================================================
 
 def extract_mfcc(path, n_mfcc=20):
@@ -354,17 +337,18 @@ def similarity(path1, path2):
     return 1 / (1 + D[-1, -1])
 
 def backup_local():
+    """Compress the project folder and upload ZIP to Dropbox."""
     try:
-        backup_zip = os.path.join(base_dir, "backups", "ayur_voice_backup.zip")
-        with zipfile.ZipFile(backup_zip, "w", zipfile.ZIP_DEFLATED, allowZip64=True) as zipf:
+        backup_zip = os.path.join(base_dir, "backups", "ayurvoice_backup.zip")
+        with zipfile.ZipFile(backup_zip, "w", compression=zipfile.ZIP_DEFLATED, allowZip64=True) as zipf:
             for root, dirs, files in os.walk(base_dir):
                 if "backups" in root:
                     continue
                 for file in files:
                     path = os.path.join(root, file)
-                    arc = os.path.relpath(path, base_dir)
-                    zipf.write(path, arc)
-        Thread(target=upload_to_drive, args=(backup_zip, "backups", "ayur_voice_backup.zip")).start()
+                    arcname = os.path.relpath(path, base_dir)
+                    zipf.write(path, arcname)
+        Thread(target=upload_to_dropbox, args=(backup_zip, "backups")).start()
     except Exception as e:
         st.warning(f"⚠️ Backup error: {e}")
 
@@ -387,24 +371,24 @@ def train_svm():
     files = [f for f in os.listdir(folder) if f.endswith(".wav")]
     if not files:
         st.warning("❌ No recordings available.")
-        return None, 0
+        return None, 0, 0
     X, y = [], []
     for f in files:
         X.append(extract_mfcc(os.path.join(folder, f)))
         y.append("_".join(f.split("_")[:-1]))
-    model = make_pipeline(StandardScaler(), SVC(kernel="rbf", probability=True))
+    model = make_pipeline(StandardScaler(), SVC(kernel='rbf', probability=True))
     model.fit(np.array(X), np.array(y))
     model_path = os.path.join(base_dir, "models", "svm_model.joblib")
     joblib.dump(model, model_path)
+    Thread(target=upload_to_dropbox, args=(model_path, "models")).start()
     Thread(target=backup_local).start()
-    train_acc = model.score(np.array(X), np.array(y)) * 100
+    train_acc = model.score(np.array(X), np.array(y))
     feedback_acc = calculate_accuracy()
-    overall_acc = round((train_acc * 0.7 + feedback_acc * 0.3), 2)
-    Thread(target=upload_to_drive, args=(model_path, "backups", "svm_model.joblib")).start()
-    return model_path, overall_acc
+    overall_acc = round((train_acc * 0.7 + feedback_acc * 0.3) * 100, 2)
+    return model_path, overall_acc, len(files)
 
 # ============================================================
-# 🎙️ RECORD & RECOGNIZE
+# 🎙️ RECORDING HANDLERS
 # ============================================================
 
 def save_audio(audio_data, save_path):
@@ -416,12 +400,12 @@ def record_reference(name, audio_data):
         return "⚠️ Enter medicine name & record."
     base_name = name.strip().replace(" ", "_").lower()
     folder = os.path.join(base_dir, "recordings")
-    idx = len([f for f in os.listdir(folder) if f.startswith(base_name)]) + 1
-    path = os.path.join(folder, f"{base_name}_{idx}.wav")
+    index = len([f for f in os.listdir(folder) if f.startswith(base_name)]) + 1
+    path = os.path.join(folder, f"{base_name}_{index}.wav")
     save_audio(audio_data, path)
-    Thread(target=upload_to_drive, args=(path, "recordings", os.path.basename(path))).start()
+    Thread(target=upload_to_dropbox, args=(path, "recordings")).start()
     Thread(target=backup_local).start()
-    return f"✅ Saved training sample #{idx} for {name}"
+    return f"✅ Saved training sample #{index} for {name}"
 
 def recognize_and_feedback(audio_data):
     if audio_data is None:
@@ -441,90 +425,60 @@ def recognize_and_feedback(audio_data):
     top3 = scores[:3]
     pred, _ = top3[0]
     pred = pred.strip().lower()
-    out = "🎯 **Top 3 Matches:**\n"
+    out = "🎯 **Top 3 Matches (DTW Similarity):**\n"
     for n, s in top3:
-        out += f"- {n}: {s*100:.1f}%\n"
+        out += f"- {n} — {s*100:.1f}%\n"
     out += f"\n✅ **Predicted Medicine:** {pred}\n"
     new_path = os.path.join(base_dir, "new_samples",
                             f"{pred}_{len(os.listdir(os.path.join(base_dir,'new_samples')))+1}.wav")
     shutil.copy(temp_path, new_path)
-    Thread(target=upload_to_drive, args=(new_path, "new_samples", os.path.basename(new_path))).start()
+    Thread(target=upload_to_dropbox, args=(new_path, "new_samples")).start()
     Thread(target=backup_local).start()
     return out, new_path, pred
 
 # ============================================================
-# 🧠 FEEDBACK + RETRAIN (Improved Gradio-Style Output)
+# 🧠 FEEDBACK + AUTO RETRAIN
 # ============================================================
 
-def record_feedback(feedback_choice, correct_name, audio_path, predicted):
-    """Logs feedback, triggers retraining after 5 samples, shows progress."""
-    if "feedback_count" not in st.session_state:
-        st.session_state["feedback_count"] = 0
+feedback_counter = {"count": 0}
 
+def record_feedback(feedback_choice, correct_name, audio_path, predicted):
     if not audio_path:
         return "⚠️ No test sample found."
-
     correct_label = predicted
     if feedback_choice == "Incorrect" and correct_name:
         correct_label = correct_name.strip().replace(" ", "_").lower()
-
     with open(feedback_file, "a", newline="") as f:
         csv.writer(f).writerow([audio_path, predicted, correct_label, feedback_choice])
-
-    Thread(target=upload_to_drive, args=(feedback_file, "root", "feedback_log.csv")).start()
+    Thread(target=upload_to_dropbox, args=(feedback_file, "feedback")).start()
     Thread(target=backup_local).start()
 
-    st.session_state["feedback_count"] += 1
-    count = st.session_state["feedback_count"]
-    st.markdown(f"🧩 **Feedback Count:** {count}/5 before retrain")
+    feedback_counter["count"] += 1
+    msg = f"📝 Feedback saved: {feedback_choice}. Added for `{correct_label}`.\n"
+    msg += f"🧩 Feedback count: {feedback_counter['count']}/5 before next retrain."
 
-    if count >= 5:
-        st.warning("⚙️ Auto Retraining Triggered — please wait ⏳")
-        progress = st.progress(0)
-        for pct in range(0, 101, 20):
-            progress.progress(pct)
-            time.sleep(0.25)
-
-        model_path, acc = train_svm()
-        st.session_state["feedback_count"] = 0
-        total_samples = len([f for f in os.listdir(os.path.join(base_dir, "recordings")) if f.endswith(".wav")])
-
+    if feedback_counter["count"] >= 5:
+        st.info("⚙️ 5 feedbacks reached → Retraining model... Please wait ⏳")
+        model_path, acc, n_samples = train_svm()
         msg = f"""
-        <div style='background-color:#002b36;color:#90ee90;padding:15px;border-radius:10px;'>
-            <h4>✅ Model Retrained Successfully</h4>
-            <b>Model File:</b> <code>{os.path.basename(model_path)}</code><br>
-            <b>Samples Trained On:</b> {total_samples}<br>
-            <b>Updated Accuracy:</b> {acc:.2f}% 🧠<br><br>
-            <b>System is now more accurate and adaptive!</b>
-        </div>
-        """
-        progress.empty()
-        st.markdown(msg, unsafe_allow_html=True)
-        return
+✅ **Model Retrained Successfully**
 
-    st.success(f"✅ Feedback saved for **{correct_label}** ({feedback_choice}).")
+**Model File:** `{os.path.basename(model_path)}`
+**Samples Trained On:** {n_samples}
+**Updated Accuracy:** {acc:.2f}% 🧠  
+_System is now more accurate and adaptive!_
+"""
+        feedback_counter["count"] = 0
+
+    return msg
 
 # ============================================================
 # 🖥️ STREAMLIT UI
 # ============================================================
 
-st.set_page_config(page_title="AyurVoice AI + Drive", layout="wide")
+st.set_page_config(page_title="AyurVoice AI + Dropbox", layout="wide")
 st.title("🧠 AyurVoice AI — Ayurvedic Medicine Voice Recognition")
-st.caption("Auto-learning • Google Drive Backup • Retrains Every 5 Feedbacks")
-
-# Summary Panel
-if os.path.exists(feedback_file):
-    acc = calculate_accuracy()
-    num_rec = len(os.listdir(os.path.join(base_dir, "recordings")))
-    count = st.session_state.get("feedback_count", 0)
-    st.markdown(f"""
-    <div style='background-color:#f0f2f6;padding:10px;border-radius:10px;margin-bottom:15px;'>
-        <b>📊 Current Model Status:</b><br>
-        🧾 <b>Training Samples:</b> {num_rec}<br>
-        🎯 <b>Feedback Accuracy:</b> {acc}%<br>
-        🔁 <b>Next Retrain In:</b> {max(0, 5 - count)} feedback(s)
-    </div>
-    """, unsafe_allow_html=True)
+st.caption("Auto-learning • Dropbox Backup • Auto Retrain every 5 feedbacks")
 
 tab1, tab2 = st.tabs(["🎙️ Record Reference", "🔍 Recognition & Feedback"])
 
@@ -555,7 +509,6 @@ with tab2:
             st.session_state["predicted"] = predicted
         else:
             st.warning("⚠️ Please record or upload an audio sample.")
-
     if "audio_path" in st.session_state:
         st.divider()
         feedback = st.radio("Was the prediction correct?", ["Correct", "Incorrect"], horizontal=True)
@@ -563,8 +516,8 @@ with tab2:
         if feedback == "Incorrect":
             correct_name = st.text_input("If incorrect, type correct name:")
         if st.button("Submit Feedback", key="btn_feedback"):
-            record_feedback(feedback, correct_name,
-                            st.session_state["audio_path"], st.session_state["predicted"])
+            msg = record_feedback(feedback, correct_name, st.session_state["audio_path"], st.session_state["predicted"])
+            st.info(msg)
 
 st.markdown("---")
-st.caption("© 2025 AyurVoice Project | Auto-learning • Auto Retrain • Google Drive Backup")
+st.caption("© 2025 AyurVoice Project | Auto-learning • Auto Retrain • Dropbox Backup")
