@@ -301,7 +301,7 @@ def connect_to_drive():
 
 # Replace with your actual folder IDs
 DRIVE_IDS = {
-    "recordings": "1cXknT8JR2VTCsVk0w_d0YGMgIVHLv-8y",
+    "recordings": "1Ji6B8ejAt93W0smT0bsdFpXcr04EHbtC",
     "new_samples": "1cXknT8JR2VTCsVk0w_d0YGMgIVHLv-8y",
     "backups": "1LhOyaEWH0x1w7jr2sg8gyv5TXn0dtChi",
     "root": "1SCcEDnUm_5cDRtnuIxfWfr2fWS5KOzXQ"
