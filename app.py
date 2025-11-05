@@ -584,14 +584,11 @@
 
 
 
-
-
-
 # ============================================================
 # 🧠 AyurVoice AI — Fully Cloud-Based (Dropbox Only)
 # ============================================================
 
-import os, io, librosa, numpy as np, pandas as pd, joblib, csv, tempfile
+import os, io, librosa, numpy as np, pandas as pd, joblib, tempfile
 from sklearn.svm import SVC
 from sklearn.preprocessing import StandardScaler
 from sklearn.pipeline import make_pipeline
@@ -626,6 +623,8 @@ FOLDERS = ["recordings", "new_samples", "models", "backups", "feedback"]
 
 def ensure_dropbox_structure():
     """Ensure AyurVoice folders exist on Dropbox."""
+    if not dbx:
+        return
     for folder in FOLDERS:
         path = f"{BASE_PATH}/{folder}"
         try:
@@ -640,8 +639,13 @@ ensure_dropbox_structure()
 # ============================================================
 
 def upload_bytes_to_dropbox(bytes_data, filename, folder):
-    """Upload binary data directly to Dropbox."""
+    """Upload binary data directly to Dropbox (always as bytes)."""
     path = f"{BASE_PATH}/{folder}/{filename}"
+    # Convert to raw bytes
+    if isinstance(bytes_data, memoryview):
+        bytes_data = bytes(bytes_data)
+    elif hasattr(bytes_data, "getvalue"):  # e.g. BytesIO
+        bytes_data = bytes_data.getvalue()
     dbx.files_upload(bytes_data, path, mode=dropbox.files.WriteMode("overwrite"))
     return path
 
@@ -663,7 +667,7 @@ def list_dropbox_files(folder):
 # ============================================================
 
 def extract_mfcc_from_bytes(file_bytes, n_mfcc=20):
-    """Extract MFCCs from audio bytes."""
+    """Extract MFCC features from audio bytes."""
     with tempfile.NamedTemporaryFile(delete=False, suffix=".wav") as tmp:
         tmp.write(file_bytes.read())
         tmp.flush()
@@ -682,7 +686,7 @@ def dtw_similarity(vec1, vec2):
 # ============================================================
 
 def train_model_from_dropbox():
-    """Train or retrain SVM from Dropbox recordings."""
+    """Train or retrain SVM using all Dropbox recordings."""
     files = list_dropbox_files("recordings")
     if not files:
         st.warning("❌ No recordings found in Dropbox.")
@@ -703,8 +707,7 @@ def train_model_from_dropbox():
     model_bytes = io.BytesIO()
     joblib.dump(model, model_bytes)
     model_bytes.seek(0)
-
-    upload_bytes_to_dropbox(model_bytes.read(), "svm_model.joblib", "models")
+    upload_bytes_to_dropbox(model_bytes, "svm_model.joblib", "models")
 
     train_acc = model.score(np.array(X), np.array(y)) * 100
     return model, train_acc, len(files)
@@ -728,7 +731,6 @@ def recognize_from_dropbox(audio_data):
     if not audio_data:
         return "⚠️ Please record or upload a test sample.", None
 
-    # Extract test MFCCs
     test_features = extract_mfcc_from_bytes(io.BytesIO(audio_data.getbuffer()))
 
     refs = list_dropbox_files("recordings")
@@ -747,7 +749,6 @@ def recognize_from_dropbox(audio_data):
     top3 = scores[:3]
     pred = top3[0][0] if top3 else "Unknown"
 
-    # Upload test sample for tracking
     new_name = f"{pred}_{len(list_dropbox_files('new_samples'))+1}.wav"
     upload_bytes_to_dropbox(audio_data.getbuffer(), new_name, "new_samples")
 
@@ -774,15 +775,13 @@ def record_feedback(feedback_choice, correct_name, predicted):
     log_row = f"{predicted},{correct_label},{feedback_choice}\n"
 
     try:
-        feedback_files = list_dropbox_files("feedback")
         log_path = f"{BASE_PATH}/feedback/feedback_log.csv"
-        existing = None
-        if feedback_files:
-            try:
-                existing = download_dropbox_file(log_path).getvalue().decode()
-            except Exception:
-                existing = ""
-        updated = (existing or "predicted,correct,feedback\n") + log_row
+        existing = ""
+        try:
+            existing = download_dropbox_file(log_path).getvalue().decode()
+        except Exception:
+            existing = "predicted,correct,feedback\n"
+        updated = existing + log_row
         upload_bytes_to_dropbox(updated.encode(), "feedback_log.csv", "feedback")
     except Exception as e:
         st.warning(f"⚠️ Feedback save failed: {e}")
@@ -853,3 +852,4 @@ with tab2:
 
 st.markdown("---")
 st.caption("© 2025 AyurVoice Cloud | Dropbox-Only • Auto-Retrain • Always Synced")
+
