@@ -1,8 +1,12 @@
+
+
+
 streamlit
 dropbox
-pydub
 librosa
 scikit-learn
 joblib
 pandas
 numpy
+aiohttp
+concurrent.futures
