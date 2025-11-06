@@ -1404,7 +1404,7 @@ import dropbox
 # ⚙️ CONFIGURATION
 # ============================================================
 USE_MODEL_FOR_PREDICTION = True     # True → use trained model
-CONF_THRESHOLD = 0.55               # Below this → uncertain prediction
+CONF_THRESHOLD = 0.15               # Below this → uncertain prediction
 
 # ============================================================
 # 🔑 DROPBOX CONNECTION
