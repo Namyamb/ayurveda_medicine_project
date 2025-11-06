@@ -6,3 +6,5 @@ scikit-learn
 soundfile
 pydrive2
 dropbox
+openai-whisper
+soundfile
