@@ -2040,39 +2040,15 @@ def extract_mfcc_from_bytes(audio_bytes, sr=16000, n_mfcc=20):
     mfcc = librosa.feature.mfcc(y=y, sr=sr, n_mfcc=n_mfcc)
     return np.mean(mfcc, axis=1)
 
-async def download_file_async(dbx, file_path):
-    async with aiohttp.ClientSession() as session:
-        async with session.get(file_path) as response:
-            return await response.read()
-
-async def download_multiple_files(files):
-    tasks = []
-    dbx = connect_dropbox()
-    for file in files:
-        task = asyncio.ensure_future(download_file_async(dbx, file))
-        tasks.append(task)
-    results = await asyncio.gather(*tasks)
-    return results
+def similarity_score(bytes1, bytes2):
+    y1, sr1 = librosa.load(io.BytesIO(bytes1), sr=16000)
+    y2, sr2 = librosa.load(io.BytesIO(bytes2), sr=16000)
+    D, _ = dtw(librosa.feature.mfcc(y=y1, sr=sr1), librosa.feature.mfcc(y=y2, sr=sr2), metric="cosine")
+    return 1 / (1 + D[-1, -1])
 
 # ============================================================
 # 🧠 MODEL TRAINING
 # ============================================================
-
-def extract_mfcc_from_batch(audio_files, sr=16000, n_mfcc=20):
-    mfccs = []
-    for file in audio_files:
-        y, _ = librosa.load(file, sr=sr)
-        y, _ = librosa.effects.trim(y)
-        mfcc = librosa.feature.mfcc(y=y, sr=sr, n_mfcc=n_mfcc)
-        mfccs.append(np.mean(mfcc, axis=1))
-    return np.array(mfccs)
-
-def cache_audio_file(file_path, file_bytes):
-    cache_path = f"/tmp/cache/{file_path.replace('/', '_')}.wav"
-    if not os.path.exists(cache_path):
-        with open(cache_path, 'wb') as f:
-            f.write(file_bytes)
-    return cache_path
 
 def train_svm_from_dropbox():
     dbx = connect_dropbox()
@@ -2099,10 +2075,7 @@ def train_svm_from_dropbox():
         label = "_".join(file.replace(".wav", "").split("_")[:-1]) or file.replace(".wav", "")
         if f"{folder}/{file}" in feedback_map:
             label = feedback_map[f"{folder}/{file}"]
-
-        # Cache audio locally to avoid re-download
-        temp_file_path = cache_audio_file(file, file_bytes.read())
-        X.append(extract_mfcc_from_bytes(temp_file_path))
+        X.append(extract_mfcc_from_bytes(file_bytes.read()))
         y.append(label.lower())
 
     if not X:
@@ -2149,6 +2122,7 @@ def recognize_from_dropbox(audio_data):
     refs = list_dropbox_files("recordings")
     if not refs:
         return "❌ No reference samples found.", None
+
     input_bytes = audio_data.getvalue()
     scores = []
 
@@ -2165,9 +2139,13 @@ def recognize_from_dropbox(audio_data):
             except Exception as e:
                 st.warning(f"Error processing file {ref}: {e}")
     
+    if not scores:
+        return "❌ No matches found.", None
+    
     scores.sort(key=lambda x: x[1], reverse=True)
     top3 = scores[:3]
-    pred = top3[0][0]
+    pred = top3[0][0]  # Get the predicted name
+
     result = "🎯 **Top 3 Matches (DTW Similarity):**\n"
     for n, s in top3:
         result += f"- {n}: {s*100:.2f}%\n"
@@ -2253,6 +2231,3 @@ with tab2:
 
 st.markdown("---")
 st.caption("© 2025 AyurVoice Project | Auto-learning • Dropbox Storage • Feedback-driven Adaptation")
-
-
-
