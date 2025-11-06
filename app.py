@@ -2269,9 +2269,10 @@ import streamlit as st
 from librosa.sequence import dtw
 from sklearn.preprocessing import StandardScaler
 from sklearn.pipeline import Pipeline
+import joblib
 
 # ---------------------------------------------------
-# Dropbox Helpers (Same as Before)
+# Dropbox Helpers (Connect, List, Download, Upload)
 # ---------------------------------------------------
 
 def connect_dropbox():
@@ -2314,7 +2315,7 @@ def upload_bytes_to_dropbox(bytes_data, file_name, folder):
         st.warning(f"⚠️ Upload failed: {e}")
 
 # ---------------------------------------------------
-# Feedback Handling (Saving Feedback)
+# Feedback Handling (Saving Feedback to CSV)
 # ---------------------------------------------------
 
 def append_feedback_to_csv(predicted, correct, feedback):
@@ -2407,6 +2408,43 @@ def recognize_from_dropbox(audio_data):
     return result, pred
 
 # ---------------------------------------------------
+# Handling User Feedback
+# ---------------------------------------------------
+
+def handle_feedback(feedback, correct_name, predicted):
+    """
+    This function handles the user feedback after a prediction is made. 
+    It stores the feedback and updates the reference samples for future predictions.
+    """
+    if "feedback_count" not in st.session_state:
+        st.session_state.feedback_count = 0
+
+    # Adjust the prediction based on feedback
+    correct_label = correct_name.strip().lower() if feedback == "Incorrect" and correct_name else predicted
+
+    # Append feedback to the feedback log
+    append_feedback_to_csv(predicted, correct_label, feedback)
+
+    # Increase the feedback count for future retraining or adjustments
+    st.session_state.feedback_count += 1
+
+    msg = f"📝 Feedback saved for `{predicted}` → `{correct_label}`.\n🧩 {st.session_state.feedback_count}/5 before next retrain."
+
+    # If enough feedback has been collected, trigger retraining or update of similarity scores
+    if st.session_state.feedback_count >= 5:
+        st.info("⚙️ Retraining model... Please wait ⏳")
+        model_path, acc, total = train_svm_from_dropbox()  # This can be updated if you're using a model
+        msg = f"""
+✅ **Model Retrained Successfully!**
+- Model File: `{model_path}`
+- Samples Used: {total}
+- Accuracy: {acc:.2f}%
+"""
+        st.session_state.feedback_count = 0  # Reset feedback count after retraining
+
+    return msg
+
+# ---------------------------------------------------
 # Streamlit UI (Same as Before)
 # ---------------------------------------------------
 
@@ -2453,4 +2491,3 @@ with tab2:
 
 st.markdown("---")
 st.caption("© 2025 AyurVoice Project | Auto-learning • Dropbox Storage • Feedback-driven Adaptation")
-
