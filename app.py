@@ -2260,15 +2260,18 @@
 
 # removed the use of SVM and improved the use of feedback_log.csv for further predctions.
 import io
-import pandas as pd
-import numpy as np
-import librosa
+import csv
 import dropbox
+import librosa
+import numpy as np
+import pandas as pd
 import streamlit as st
 from librosa.sequence import dtw
+from sklearn.preprocessing import StandardScaler
+from sklearn.pipeline import Pipeline
 
 # ---------------------------------------------------
-# DropBox Helpers (Same as Before)
+# Dropbox Helpers (Same as Before)
 # ---------------------------------------------------
 
 def connect_dropbox():
@@ -2299,6 +2302,17 @@ def download_dropbox_file(folder, file_name):
     except:
         return None
 
+def upload_bytes_to_dropbox(bytes_data, file_name, folder):
+    dbx = connect_dropbox()  # Connect to Dropbox
+    if not dbx:
+        st.warning("❌ Failed to connect to Dropbox.")
+        return
+    try:
+        path = f"/AyurVoice/{folder}/{file_name}"
+        dbx.files_upload(bytes_data, path, mode=dropbox.files.WriteMode("overwrite"))
+    except Exception as e:
+        st.warning(f"⚠️ Upload failed: {e}")
+
 # ---------------------------------------------------
 # Feedback Handling (Saving Feedback)
 # ---------------------------------------------------
@@ -2312,8 +2326,12 @@ def append_feedback_to_csv(predicted, correct, feedback):
         df = pd.read_csv(io.BytesIO(res.content))
         rows = df.values.tolist()
     except:
-        pass
+        pass  # No feedback available yet
+
+    # Append new feedback to the log
     rows.append([f"new_samples/{predicted}.wav", predicted, correct, feedback])
+
+    # Upload the updated feedback log
     out = io.StringIO()
     writer = csv.writer(out)
     writer.writerow(["audio_path", "predicted", "correct", "feedback"])
@@ -2435,3 +2453,4 @@ with tab2:
 
 st.markdown("---")
 st.caption("© 2025 AyurVoice Project | Auto-learning • Dropbox Storage • Feedback-driven Adaptation")
+
