@@ -1398,13 +1398,9 @@
 
 
 
-
-
-
-
-
 # ============================================================
-# 🧠 AyurVoice AI — Ayurvedic Medicine Voice Recognition (Dropbox + Model-based)
+# 🧠 AyurVoice AI — Ayurvedic Medicine Voice Recognition
+# (Dropbox-only • Enhanced MFCC Features • Auto-Retrain Every 5 Feedbacks)
 # ============================================================
 
 import os, io, csv, joblib, librosa, numpy as np, pandas as pd, streamlit as st
@@ -1433,7 +1429,8 @@ def connect_dropbox():
 
 def upload_bytes_to_dropbox(bytes_data, file_name, folder):
     dbx = connect_dropbox()
-    if not dbx: return
+    if not dbx:
+        return
     try:
         path = f"/AyurVoice/{folder}/{file_name}"
         dbx.files_upload(bytes_data, path, mode=dropbox.files.WriteMode("overwrite"))
@@ -1442,7 +1439,8 @@ def upload_bytes_to_dropbox(bytes_data, file_name, folder):
 
 def list_dropbox_files(folder):
     dbx = connect_dropbox()
-    if not dbx: return []
+    if not dbx:
+        return []
     try:
         result = dbx.files_list_folder(f"/AyurVoice/{folder}")
         return [entry.name for entry in result.entries if isinstance(entry, dropbox.files.FileMetadata)]
@@ -1451,16 +1449,18 @@ def list_dropbox_files(folder):
 
 def download_dropbox_file(folder, file_name):
     dbx = connect_dropbox()
-    if not dbx: return None
+    if not dbx:
+        return None
     try:
         _, res = dbx.files_download(f"/AyurVoice/{folder}/{file_name}")
         return io.BytesIO(res.content)
-    except:
+    except Exception:
         return None
 
 def ensure_folder_structure():
     dbx = connect_dropbox()
-    if not dbx: return
+    if not dbx:
+        return
     folders = ["recordings", "new_samples", "models", "feedback"]
     for f in folders:
         path = f"/AyurVoice/{f}"
@@ -1470,15 +1470,25 @@ def ensure_folder_structure():
             dbx.files_create_folder_v2(path)
 
 # ============================================================
-# 🎚️ AUDIO PROCESSING
+# 🎚️ AUDIO PROCESSING (Improved: MFCC + Δ + ΔΔ)
 # ============================================================
 
 def extract_mfcc_from_bytes(audio_bytes, sr=16000, n_mfcc=20):
-    """Extract mean MFCC vector from audio bytes"""
+    """Extract richer features from audio (MFCC + delta + delta²)."""
     y, _ = librosa.load(io.BytesIO(audio_bytes), sr=sr)
     y, _ = librosa.effects.trim(y)
+
     mfcc = librosa.feature.mfcc(y=y, sr=sr, n_mfcc=n_mfcc)
-    return np.mean(mfcc, axis=1)
+    mfcc_delta = librosa.feature.delta(mfcc)
+    mfcc_delta2 = librosa.feature.delta(mfcc, order=2)
+
+    # Combine means from all three feature types
+    features = np.concatenate([
+        np.mean(mfcc, axis=1),
+        np.mean(mfcc_delta, axis=1),
+        np.mean(mfcc_delta2, axis=1)
+    ])
+    return features
 
 # ============================================================
 # 🧠 MODEL TRAINING (SVM)
@@ -1487,9 +1497,10 @@ def extract_mfcc_from_bytes(audio_bytes, sr=16000, n_mfcc=20):
 def train_svm_from_dropbox():
     """Retrains the SVM model using all recordings and new_samples."""
     dbx = connect_dropbox()
-    if not dbx: return None, 0, 0
-    X, y = [], []
+    if not dbx:
+        return None, 0, 0
 
+    X, y = [], []
     all_files = list_dropbox_files("recordings") + list_dropbox_files("new_samples")
 
     # Load feedback corrections
@@ -1518,12 +1529,12 @@ def train_svm_from_dropbox():
         st.warning("❌ No data available for training.")
         return None, 0, 0
 
-    # Train model
+    # Train SVM
     model = make_pipeline(StandardScaler(), SVC(kernel="rbf", probability=True))
     model.fit(np.array(X), np.array(y))
     acc = model.score(np.array(X), np.array(y)) * 100
 
-    # Save model to Dropbox
+    # Save and upload model
     model_bytes = io.BytesIO()
     joblib.dump(model, model_bytes)
     model_bytes.seek(0)
@@ -1538,13 +1549,14 @@ def train_svm_from_dropbox():
 def append_feedback_to_csv(predicted, correct, feedback):
     """Append feedback entry into Dropbox feedback_log.csv"""
     dbx = connect_dropbox()
-    if not dbx: return
+    if not dbx:
+        return
     rows = []
     try:
         _, res = dbx.files_download("/AyurVoice/feedback/feedback_log.csv")
         df = pd.read_csv(io.BytesIO(res.content))
         rows = df.values.tolist()
-    except:
+    except Exception:
         pass
 
     rows.append([f"new_samples/{predicted}.wav", predicted, correct, feedback])
@@ -1567,7 +1579,7 @@ def recognize_with_model(audio_data):
     # Load model
     model = joblib.load(io.BytesIO(model_file.read()))
 
-    # Extract features from audio
+    # Extract richer features
     input_vec = extract_mfcc_from_bytes(audio_data.getvalue()).reshape(1, -1)
 
     # Predict
@@ -1609,9 +1621,9 @@ def handle_feedback(feedback, correct_name, predicted):
 # 🖥️ STREAMLIT UI
 # ============================================================
 
-st.set_page_config(page_title="AyurVoice AI — Dropbox + Model", layout="wide")
-st.title("🧠 AyurVoice AI — Ayurvedic Medicine Voice Recognition (Dropbox + SVM Model)")
-st.caption("Fully model-based • Auto-learning • Auto-Retrain every 5 feedbacks")
+st.set_page_config(page_title="AyurVoice AI — Dropbox", layout="wide")
+st.title("🧠 AyurVoice AI — Ayurvedic Medicine Voice Recognition (Dropbox + Enhanced MFCC)")
+st.caption("Cloud-only • MFCC + Δ + Δ² • Auto-learning • Auto-Retrain every 5 feedbacks")
 
 ensure_folder_structure()
 tab1, tab2 = st.tabs(["🎙️ Record Reference", "🔍 Recognition & Feedback"])
@@ -1654,4 +1666,4 @@ with tab2:
             st.info(msg)
 
 st.markdown("---")
-st.caption("© 2025 AyurVoice Project | Model-based Recognition • Dropbox Storage • Feedback-driven Learning")
+st.caption("© 2025 AyurVoice Project | Enhanced MFCC • Dropbox Storage • Feedback-driven Learning")
