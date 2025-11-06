@@ -1,10 +1,9 @@
 streamlit
-librosa
-numpy
-pandas
-scikit-learn
-soundfile
-pydrive2
 dropbox
-openai-whisper
-soundfile
+pydub
+librosa
+scikit-learn
+joblib
+pandas
+numpy
+concurrent.futures
