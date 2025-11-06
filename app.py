@@ -1389,7 +1389,6 @@
 
 
 
-
 # ============================================================
 # 🧠 AyurVoice AI — Ayurvedic Medicine Voice Recognition
 # (Dropbox • RandomForest • MFCC + Delta • Feedback Auto-Retrain)
@@ -1402,10 +1401,10 @@ from sklearn.pipeline import make_pipeline
 import dropbox
 
 # ============================================================
-# ⚙️ CONFIG
+# ⚙️ CONFIGURATION
 # ============================================================
-USE_MODEL_FOR_PREDICTION = True       # Set True to use trained model
-CONF_THRESHOLD = 0.55                 # Confidence cutoff for "Unknown"
+USE_MODEL_FOR_PREDICTION = True     # True → use trained model
+CONF_THRESHOLD = 0.55               # Below this → uncertain prediction
 
 # ============================================================
 # 🔑 DROPBOX CONNECTION
@@ -1425,7 +1424,8 @@ def connect_dropbox():
 # ============================================================
 def upload_bytes_to_dropbox(bytes_data, file_name, folder):
     dbx = connect_dropbox()
-    if not dbx: return
+    if not dbx:
+        return
     try:
         path = f"/AyurVoice/{folder}/{file_name}"
         dbx.files_upload(bytes_data, path, mode=dropbox.files.WriteMode("overwrite"))
@@ -1434,7 +1434,8 @@ def upload_bytes_to_dropbox(bytes_data, file_name, folder):
 
 def list_dropbox_files(folder):
     dbx = connect_dropbox()
-    if not dbx: return []
+    if not dbx:
+        return []
     try:
         result = dbx.files_list_folder(f"/AyurVoice/{folder}")
         return [entry.name for entry in result.entries if isinstance(entry, dropbox.files.FileMetadata)]
@@ -1443,7 +1444,8 @@ def list_dropbox_files(folder):
 
 def download_dropbox_file(folder, file_name):
     dbx = connect_dropbox()
-    if not dbx: return None
+    if not dbx:
+        return None
     try:
         _, res = dbx.files_download(f"/AyurVoice/{folder}/{file_name}")
         return io.BytesIO(res.content)
@@ -1452,7 +1454,8 @@ def download_dropbox_file(folder, file_name):
 
 def ensure_folder_structure():
     dbx = connect_dropbox()
-    if not dbx: return
+    if not dbx:
+        return
     for f in ["recordings", "new_samples", "models", "feedback"]:
         path = f"/AyurVoice/{f}"
         try:
@@ -1481,7 +1484,8 @@ def extract_mfcc_from_bytes(audio_bytes, sr=16000, n_mfcc=20):
 def train_model_from_dropbox():
     """Train RandomForest using all recordings + new_samples"""
     dbx = connect_dropbox()
-    if not dbx: return None, 0, 0
+    if not dbx:
+        return None, 0, 0
     X, y = [], []
 
     all_files = list_dropbox_files("recordings") + list_dropbox_files("new_samples")
@@ -1527,7 +1531,8 @@ def train_model_from_dropbox():
 # ============================================================
 def append_feedback_to_csv(predicted, correct, feedback):
     dbx = connect_dropbox()
-    if not dbx: return
+    if not dbx:
+        return
     rows = []
     try:
         _, res = dbx.files_download("/AyurVoice/feedback/feedback_log.csv")
@@ -1607,7 +1612,7 @@ with tab1:
         else:
             st.warning("⚠️ Enter a name and record/upload audio.")
 
-# TAB 2 — Recognize & Feedback
+# TAB 2 — Recognize, Feedback, and Manual Retrain
 with tab2:
     st.subheader("Recognize Medicine Name (Model-based)")
     test_audio = st.audio_input("🎧 Record or Upload Test Sample", sample_rate=16000)
@@ -1617,12 +1622,23 @@ with tab2:
             if USE_MODEL_FOR_PREDICTION:
                 result, predicted = recognize_with_model(test_audio)
             else:
-                result, predicted = "⚙️ DTW mode disabled for now", None
+                result, predicted = "⚙️ Model-based recognition disabled.", None
             st.markdown(result)
             st.session_state["predicted"] = predicted
         else:
             st.warning("⚠️ Record or upload audio to recognize.")
 
+    # 🧠 Manual Model Retraining
+    st.divider()
+    st.subheader("🧠 Manual Model Retraining")
+    if st.button("🔁 Retrain Model Now"):
+        model_path, acc, total = train_model_from_dropbox()
+        if model_path:
+            st.success(f"✅ Model retrained successfully!\n- File: `{model_path}`\n- Samples: {total}\n- Accuracy: {acc:.2f}%")
+        else:
+            st.warning("⚠️ Model retraining failed or no data found.")
+
+    # Feedback section
     if "predicted" in st.session_state:
         st.divider()
         fb = st.radio("Was the prediction correct?", ["Correct", "Incorrect"], horizontal=True)
