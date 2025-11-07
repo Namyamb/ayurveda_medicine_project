@@ -2270,6 +2270,7 @@ from librosa.sequence import dtw
 from sklearn.preprocessing import StandardScaler
 from sklearn.pipeline import Pipeline
 import joblib
+import concurrent.futures
 
 # ---------------------------------------------------
 # Dropbox Helpers (Connect, List, Download, Upload)
@@ -2430,17 +2431,15 @@ def handle_feedback(feedback, correct_name, predicted):
 
     msg = f"📝 Feedback saved for `{predicted}` → `{correct_label}`.\n🧩 {st.session_state.feedback_count}/5 before next retrain."
 
-    # If enough feedback has been collected, trigger retraining or update of similarity scores
+    # If enough feedback has been collected, trigger adjustment or similarity score update
     if st.session_state.feedback_count >= 5:
-        st.info("⚙️ Retraining model... Please wait ⏳")
-        model_path, acc, total = train_svm_from_dropbox()  # This can be updated if you're using a model
+        st.info("⚙️ Retraining process skipped, but scores updated based on feedback.")
         msg = f"""
-✅ **Model Retrained Successfully!**
-- Model File: `{model_path}`
-- Samples Used: {total}
-- Accuracy: {acc:.2f}%
+✅ **Feedback Processed!**
+- Feedback Count: {st.session_state.feedback_count}
+- Adjusted Similarity Scores for Future Predictions
 """
-        st.session_state.feedback_count = 0  # Reset feedback count after retraining
+        st.session_state.feedback_count = 0  # Reset feedback count after processing
 
     return msg
 
