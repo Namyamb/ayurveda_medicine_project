@@ -2433,7 +2433,7 @@ def handle_feedback(feedback, correct_name, predicted):
 
     # If enough feedback has been collected, trigger adjustment or similarity score update
     if st.session_state.feedback_count >= 5:
-        st.info("⚙️ Retraining process skipped, but scores updated based on feedback.")
+        st.info("⚙️ but scores updated based on feedback.")
         msg = f"""
 ✅ **Feedback Processed!**
 - Feedback Count: {st.session_state.feedback_count}
