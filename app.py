@@ -2259,6 +2259,263 @@
 
 
 # removed the use of SVM and improved the use of feedback_log.csv for further predctions.
+# import io
+# import csv
+# import dropbox
+# import librosa
+# import numpy as np
+# import pandas as pd
+# import streamlit as st
+# from librosa.sequence import dtw
+# from sklearn.preprocessing import StandardScaler
+# from sklearn.pipeline import Pipeline
+# import joblib
+# import concurrent.futures
+
+# # ---------------------------------------------------
+# # Dropbox Helpers (Connect, List, Download, Upload)
+# # ---------------------------------------------------
+
+# def connect_dropbox():
+#     try:
+#         token = st.secrets["dropbox"]["access_token"]
+#         dbx = dropbox.Dropbox(token)
+#         dbx.users_get_current_account()
+#         return dbx
+#     except Exception as e:
+#         st.error(f"❌ Dropbox connection failed: {e}")
+#         return None
+
+# def list_dropbox_files(folder):
+#     dbx = connect_dropbox()
+#     if not dbx: return []
+#     try:
+#         result = dbx.files_list_folder(f"/AyurVoice/{folder}")
+#         return [entry.name for entry in result.entries if isinstance(entry, dropbox.files.FileMetadata)]
+#     except dropbox.exceptions.ApiError:
+#         return []
+
+# def download_dropbox_file(folder, file_name):
+#     dbx = connect_dropbox()
+#     if not dbx: return None
+#     try:
+#         _, res = dbx.files_download(f"/AyurVoice/{folder}/{file_name}")
+#         return io.BytesIO(res.content)
+#     except:
+#         return None
+
+# def upload_bytes_to_dropbox(bytes_data, file_name, folder):
+#     dbx = connect_dropbox()  # Connect to Dropbox
+#     if not dbx:
+#         st.warning("❌ Failed to connect to Dropbox.")
+#         return
+#     try:
+#         path = f"/AyurVoice/{folder}/{file_name}"
+#         dbx.files_upload(bytes_data, path, mode=dropbox.files.WriteMode("overwrite"))
+#     except Exception as e:
+#         st.warning(f"⚠️ Upload failed: {e}")
+
+# # ---------------------------------------------------
+# # Feedback Handling (Saving Feedback to CSV)
+# # ---------------------------------------------------
+
+# def append_feedback_to_csv(predicted, correct, feedback):
+#     dbx = connect_dropbox()
+#     if not dbx: return
+#     rows = []
+#     try:
+#         _, res = dbx.files_download("/AyurVoice/feedback/feedback_log.csv")
+#         df = pd.read_csv(io.BytesIO(res.content))
+#         rows = df.values.tolist()
+#     except:
+#         pass  # No feedback available yet
+
+#     # Append new feedback to the log
+#     rows.append([f"new_samples/{predicted}.wav", predicted, correct, feedback])
+
+#     # Upload the updated feedback log
+#     out = io.StringIO()
+#     writer = csv.writer(out)
+#     writer.writerow(["audio_path", "predicted", "correct", "feedback"])
+#     writer.writerows(rows)
+#     upload_bytes_to_dropbox(out.getvalue().encode(), "feedback_log.csv", "feedback")
+
+# # ---------------------------------------------------
+# # Audio Processing and Matching (Using DTW)
+# # ---------------------------------------------------
+
+# def extract_mfcc_from_bytes(audio_bytes, sr=16000, n_mfcc=20):
+#     y, _ = librosa.load(io.BytesIO(audio_bytes), sr=sr)
+#     y, _ = librosa.effects.trim(y)  # Trim silence at the beginning/end
+#     mfcc = librosa.feature.mfcc(y=y, sr=sr, n_mfcc=n_mfcc)
+#     return np.mean(mfcc, axis=1)
+
+# def similarity_score(bytes1, bytes2):
+#     y1, sr1 = librosa.load(io.BytesIO(bytes1), sr=16000)
+#     y2, sr2 = librosa.load(io.BytesIO(bytes2), sr=16000)
+#     D, _ = dtw(librosa.feature.mfcc(y=y1, sr=sr1), librosa.feature.mfcc(y=y2, sr=sr2), metric="cosine")
+#     return 1 / (1 + D[-1, -1])
+
+# # ---------------------------------------------------
+# # Recognition Function (With Feedback)
+# # ---------------------------------------------------
+
+# def recognize_from_dropbox(audio_data):
+#     refs = list_dropbox_files("recordings")
+#     if not refs:
+#         return "❌ No reference samples found.", None
+
+#     input_bytes = audio_data.getvalue()
+#     scores = []
+#     feedback_map = {}  # To store feedback for adjustments
+
+#     # Load feedback log and map predictions to feedback
+#     try:
+#         _, res = connect_dropbox().files_download("/AyurVoice/feedback/feedback_log.csv")
+#         df = pd.read_csv(io.BytesIO(res.content))
+#         for _, row in df.iterrows():
+#             feedback_map[row["audio_path"]] = row["correct"]
+#     except Exception:
+#         pass  # No feedback available yet
+
+#     # Loop through references and calculate similarity score
+#     for ref in refs:
+#         ref_bytes = download_dropbox_file("recordings", ref)
+#         if ref_bytes:
+#             sim = similarity_score(input_bytes, ref_bytes.read())
+#             base = "_".join(ref.replace(".wav", "").split("_")[:-1])
+
+#             # Adjust scores based on feedback (boosting correct predictions)
+#             if f"new_samples/{base}.wav" in feedback_map:
+#                 if feedback_map[f"new_samples/{base}.wav"] == base:
+#                     sim += 0.2  # Boost similarity score if feedback was correct
+
+#             scores.append((base.replace("_", " "), sim))
+    
+#     # Sort scores by similarity
+#     scores.sort(key=lambda x: x[1], reverse=True)
+#     top3 = scores[:3]
+#     pred = top3[0][0]
+
+#     result = "🎯 **Top 3 Matches (DTW Similarity):**\n"
+#     for n, s in top3:
+#         result += f"- {n}: {s*100:.2f}%\n"
+#     result += f"\n✅ **Predicted Medicine:** {pred}"
+
+#     # Upload the input file to new samples
+#     new_name = f"{pred}_{len(list_dropbox_files('new_samples'))+1}.wav"
+#     upload_bytes_to_dropbox(input_bytes, new_name, "new_samples")
+
+#     return result, pred
+
+# # ---------------------------------------------------
+# # Handling User Feedback
+# # ---------------------------------------------------
+
+# def handle_feedback(feedback, correct_name, predicted):
+#     """
+#     This function handles the user feedback after a prediction is made. 
+#     It stores the feedback and updates the reference samples for future predictions.
+#     """
+#     if "feedback_count" not in st.session_state:
+#         st.session_state.feedback_count = 0
+
+#     # Adjust the prediction based on feedback
+#     correct_label = correct_name.strip().lower() if feedback == "Incorrect" and correct_name else predicted
+
+#     # Append feedback to the feedback log
+#     append_feedback_to_csv(predicted, correct_label, feedback)
+
+#     # Increase the feedback count for future retraining or adjustments
+#     st.session_state.feedback_count += 1
+
+#     msg = f"📝 Feedback saved for `{predicted}` → `{correct_label}`.\n🧩 {st.session_state.feedback_count}/5 before next retrain."
+
+#     # If enough feedback has been collected, trigger adjustment or similarity score update
+#     if st.session_state.feedback_count >= 5:
+#         st.info("⚙️ but scores updated based on feedback.")
+#         msg = f"""
+# ✅ **Feedback Processed!**
+# - Feedback Count: {st.session_state.feedback_count}
+# - Adjusted Similarity Scores for Future Predictions
+# """
+#         st.session_state.feedback_count = 0  # Reset feedback count after processing
+
+#     return msg
+
+# # ---------------------------------------------------
+# # Streamlit UI (Same as Before)
+# # ---------------------------------------------------
+
+# st.set_page_config(page_title="AyurVoice AI — Dropbox", layout="wide")
+# st.title("🧠 AyurVoice AI — Ayurvedic Medicine Voice Recognition (Dropbox)")
+# st.caption("Cloud-only • Auto-learning • Uses both recordings & feedback samples")
+
+# # Process tabs (same as before)
+# tab1, tab2 = st.tabs(["🎙️ Record Reference", "🔍 Recognition & Feedback"])
+
+# # TAB 1 — Add New Medicine
+# with tab1:
+#     st.subheader("Add New Medicine Reference Samples")
+#     name = st.text_input("Enter Medicine Name:")
+#     audio_data = st.audio_input("🎧 Record or Upload Reference Audio", sample_rate=16000)
+#     if st.button("Save Reference"):
+#         if name and audio_data:
+#             file_name = f"{name.strip().replace(' ', '_').lower()}_{len(list_dropbox_files('recordings'))+1}.wav"
+#             upload_bytes_to_dropbox(audio_data.getvalue(), file_name, "recordings")
+#             st.success(f"✅ Saved `{name}` to Dropbox/recordings/")
+#         else:
+#             st.warning("⚠️ Enter a name and record/upload audio.")
+
+# # TAB 2 — Recognition + Feedback
+# with tab2:
+#     st.subheader("Recognize Medicine Name")
+#     test_audio = st.audio_input("🎧 Record or Upload Test Sample", sample_rate=16000)
+#     if st.button("Recognize"):
+#         if test_audio:
+#             result, predicted = recognize_from_dropbox(test_audio)
+#             st.markdown(result)
+#             st.session_state["predicted"] = predicted
+#         else:
+#             st.warning("⚠️ Record or upload audio to recognize.")
+#     if "predicted" in st.session_state:
+#         st.divider()
+#         fb = st.radio("Was the prediction correct?", ["Correct", "Incorrect"], horizontal=True)
+#         correct_name = ""
+#         if fb == "Incorrect":
+#             correct_name = st.text_input("Enter correct name:")
+#         if st.button("Submit Feedback"):
+#             msg = handle_feedback(fb, correct_name, st.session_state["predicted"])
+#             st.info(msg)
+
+# st.markdown("---")
+# st.caption("© 2025 AyurVoice Project | Auto-learning • Dropbox Storage • Feedback-driven Adaptation")
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+## working code with parellel feature to reduce the response time
 import io
 import csv
 import dropbox
@@ -2267,9 +2524,6 @@ import numpy as np
 import pandas as pd
 import streamlit as st
 from librosa.sequence import dtw
-from sklearn.preprocessing import StandardScaler
-from sklearn.pipeline import Pipeline
-import joblib
 import concurrent.futures
 
 # ---------------------------------------------------
@@ -2378,21 +2632,25 @@ def recognize_from_dropbox(audio_data):
     except Exception:
         pass  # No feedback available yet
 
-    # Loop through references and calculate similarity score
-    for ref in refs:
-        ref_bytes = download_dropbox_file("recordings", ref)
-        if ref_bytes:
-            sim = similarity_score(input_bytes, ref_bytes.read())
-            base = "_".join(ref.replace(".wav", "").split("_")[:-1])
+    # Parallelize file downloads and similarity calculations
+    with concurrent.futures.ThreadPoolExecutor() as executor:
+        futures = {executor.submit(download_dropbox_file, "recordings", ref): ref for ref in refs}
+        for future in concurrent.futures.as_completed(futures):
+            ref = futures[future]
+            try:
+                ref_bytes = future.result()
+                sim = similarity_score(input_bytes, ref_bytes.read())  # Compare audio
+                base = "_".join(ref.replace(".wav", "").split("_")[:-1])
 
-            # Adjust scores based on feedback (boosting correct predictions)
-            if f"new_samples/{base}.wav" in feedback_map:
-                if feedback_map[f"new_samples/{base}.wav"] == base:
-                    sim += 0.2  # Boost similarity score if feedback was correct
+                # Adjust scores based on feedback (boosting correct predictions)
+                if f"new_samples/{base}.wav" in feedback_map:
+                    if feedback_map[f"new_samples/{base}.wav"] == base:
+                        sim += 0.2  # Boost similarity score if feedback was correct
 
-            scores.append((base.replace("_", " "), sim))
+                scores.append((base.replace("_", " "), sim))
+            except Exception as e:
+                st.warning(f"Error processing file {ref}: {e}")
     
-    # Sort scores by similarity
     scores.sort(key=lambda x: x[1], reverse=True)
     top3 = scores[:3]
     pred = top3[0][0]
@@ -2433,7 +2691,7 @@ def handle_feedback(feedback, correct_name, predicted):
 
     # If enough feedback has been collected, trigger adjustment or similarity score update
     if st.session_state.feedback_count >= 5:
-        st.info("⚙️ but scores updated based on feedback.")
+        st.info("⚙️ Retraining process skipped, but scores updated based on feedback.")
         msg = f"""
 ✅ **Feedback Processed!**
 - Feedback Count: {st.session_state.feedback_count}
@@ -2490,3 +2748,9 @@ with tab2:
 
 st.markdown("---")
 st.caption("© 2025 AyurVoice Project | Auto-learning • Dropbox Storage • Feedback-driven Adaptation")
+
+
+
+
+
+
